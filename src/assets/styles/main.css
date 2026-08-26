@@ -1,0 +1,281 @@
+@import "tailwindcss";
+
+/* ════════════════════════════════════════════════════════════════════
+   THEME TOKENS  (Tailwind CSS v4 — no config file needed)
+   Any `--color-*`, `--font-*`, `--text-*` token here becomes a utility:
+     --color-blue   →  bg-blue / text-blue / border-blue / …
+     --font-geist   →  font-geist
+     --text-subtitle→  text-subtitle  (+ sm:text-subtitle, etc.)
+   ════════════════════════════════════════════════════════════════════ */
+@theme {
+  /* Brand blue (used by the footer + preloader) */
+  --color-blue: #17a6e3;
+
+  /* Typography */
+  --font-bricolage: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif !important;
+  --font-geist: "Geist", ui-sans-serif, system-ui, sans-serif !important;
+
+  /* Custom text size used by the original markup (`text-subtitle`) */
+  --text-subtitle: 1rem;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   BASE
+   ════════════════════════════════════════════════════════════════════ */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+/* Lock scroll while the preloader is on screen */
+html.preloader-lock,
+html.preloader-lock body {
+  overflow: hidden;
+  height: 100%;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+/* Default font pairing — body copy uses Geist, headings use Bricolage */
+p, span, a, li, button, input, textarea {
+  font-family: "Geist", sans-serif !important;
+}
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Bricolage Grotesque", sans-serif !important;
+}
+
+/* Lock scroll when the mobile menu is open */
+body.menu-open {
+  overflow: hidden;
+}
+
+/* Elements reveal once as they enter the viewport. */
+.reveal-on-scroll {
+  opacity: 0;
+  filter: blur(12px);
+  transform: translateY(2rem);
+  transition:
+    opacity 0.75s ease,
+    filter 0.75s ease,
+    transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal-on-scroll.reveal-visible {
+  opacity: 1;
+  filter: blur(0);
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-on-scroll {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    transition: none;
+  }
+}
+
+.hero-reveal-item {
+  opacity: 0;
+  filter: blur(12px);
+  transform: translateY(2.5rem);
+  transition:
+    opacity 0.8s ease,
+    filter 0.8s ease,
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.hero-reveal-name,
+.hero-reveal-role {
+  display: inline-block;
+}
+
+.hero-content-visible .hero-reveal-item {
+  opacity: 1;
+  filter: blur(0);
+  transform: translateY(0);
+}
+
+.hero-content-visible .hero-reveal-name {
+  transition-delay: 280ms;
+}
+
+.hero-content-visible .hero-reveal-role {
+  transition-delay: 420ms;
+}
+
+.hero-content-visible .hero-reveal-paragraph {
+  transition-delay: 560ms;
+}
+
+.hero-content-visible .hero-reveal-actions {
+  transition-delay: 700ms;
+}
+
+.hero-content-visible .hero-reveal-case-studies {
+  transition-delay: 840ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-reveal-item {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   CUSTOM UTILITIES (ported from the original `input.css`)
+   ════════════════════════════════════════════════════════════════════ */
+.gradient {
+  background: linear-gradient(to bottom left, #bbe6f6, #398db1);
+}
+
+.bouncing-text {
+  animation: bounce 1s infinite 1s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-20px); }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   NAVBAR — hamburger animation
+   ════════════════════════════════════════════════════════════════════ */
+.bar {
+  transition: transform 0.35s ease, opacity 0.25s ease;
+}
+#hamburger-btn.open .bar-top {
+  transform: translateY(7px) rotate(45deg);
+}
+#hamburger-btn.open .bar-mid {
+  opacity: 0;
+}
+#hamburger-btn.open .bar-bottom {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PRELOADER
+   ════════════════════════════════════════════════════════════════════ */
+#preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background-color: #17a6e3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.9s cubic-bezier(0.76, 0, 0.24, 1);
+  will-change: transform;
+}
+#preloader.preloader-exit {
+  transform: translateY(-100%);
+}
+
+.preloader-logo-wrap {
+  position: relative;
+  width: 6rem;
+  height: 6rem;
+  animation: preloaderPulse 2.4s ease-in-out infinite;
+}
+@media (min-width: 640px) {
+  .preloader-logo-wrap {
+    width: 8rem;
+    height: 8rem;
+  }
+}
+@keyframes preloaderPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.05); }
+}
+#preloader.preloader-loaded .preloader-logo-wrap {
+  animation: none;
+  transform: scale(1.18);
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Logo mask — reuses the navbar logo file so its exact silhouette is used,
+   regardless of the source file's original fill colour. */
+.logo-mask {
+  -webkit-mask-image: url("/assets/img/logo-white.svg");
+  mask-image: url("/assets/img/logo-white.svg");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+/* Faint outline sitting behind the wave-fill */
+.preloader-logo-outline {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Clipping container that shows the wave through the logo shape */
+.preloader-logo-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* The "water level" — grows in height as % loads */
+#wave-level {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 0%;
+  transition: height 0.45s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/* Solid body of water beneath the wave crest */
+.wave-fill-solid {
+  position: absolute;
+  inset: 0;
+  top: 6px;
+  background: #ffffff;
+}
+
+/* Animated wave crest lines riding on top of the water level */
+.wave-layer {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: 100%;
+  height: 10px;
+  background-repeat: repeat-x;
+  background-size: 50px 10px;
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2050%2010'%20preserveAspectRatio='none'%3E%3Cpath%20d='M0,5%20C12.5,10%2037.5,0%2050,5%20L50,10%20L0,10%20Z'%20fill='white'/%3E%3C/svg%3E");
+}
+.wave-back {
+  opacity: 0.45;
+  height: 9px;
+  animation: waveScrollBack 3.6s linear infinite;
+}
+.wave-front {
+  opacity: 0.9;
+  height: 11px;
+  margin-bottom: -1px;
+  animation: waveScrollFront 2s linear infinite;
+}
+@keyframes waveScrollBack {
+  from { background-position-x: 0; }
+  to   { background-position-x: 50px; }
+}
+@keyframes waveScrollFront {
+  from { background-position-x: 0; }
+  to   { background-position-x: -50px; }
+}
+
+#preloader-percent {
+  font-variant-numeric: tabular-nums;
+}
