@@ -1,5 +1,74 @@
 <script setup>
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import ArrowIcon from '@/components/ui/ArrowIcon.vue'
+
+const aboutHeading = ref(null)
+const aboutColorProgress = ref(0)
+
+const aboutWords = computed(() => {
+  const segments = [
+    {
+      text: "I'm Raldin, a developer in Zamboanga del Norte by way of the Philippines. For the last few years, I've helped businesses and communities ship products that actually work. Right now I'm building the",
+      color: '#111827',
+    },
+    {
+      text: 'intersection of logic and creativity,',
+      color: '#3b82f6',
+    },
+    {
+      text: 'making the web feel',
+      color: '#111827',
+    },
+    {
+      text: 'a little more intelligent.',
+      color: '#6b7280',
+    },
+  ]
+
+  return segments.flatMap(({ text, color }) =>
+    text.split(/\s+/).map((word) => ({ word, color })),
+  )
+})
+
+function updateAboutColor() {
+  const heading = aboutHeading.value
+  if (!heading) return
+
+  const startLine = window.innerHeight * 0.75
+  const endLine = window.innerHeight * 0.35
+  const { top, height } = heading.getBoundingClientRect()
+  const headingCenter = top + height / 2
+
+  aboutColorProgress.value = Math.min(
+    100,
+    Math.max(0, ((startLine - headingCenter) / (startLine - endLine)) * 100),
+  )
+}
+
+function getWordColorProgress(index) {
+  const wordCount = aboutWords.value.length
+  const wordStart = (index / wordCount) * 100
+  const wordEnd = ((index + 1) / wordCount) * 100
+
+  return Math.min(
+    100,
+    Math.max(
+      0,
+      ((aboutColorProgress.value - wordStart) / (wordEnd - wordStart)) * 100,
+    ),
+  )
+}
+
+onMounted(() => {
+  window.addEventListener('scroll', updateAboutColor, { passive: true })
+  window.addEventListener('resize', updateAboutColor)
+  updateAboutColor()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', updateAboutColor)
+  window.removeEventListener('resize', updateAboutColor)
+})
 </script>
 
 <template>
@@ -15,15 +84,18 @@ import ArrowIcon from '@/components/ui/ArrowIcon.vue'
       <div class="flex flex-col lg:flex-row gap-8 lg:gap-0">
         <div v-reveal class="w-full lg:w-2/3 p-1 sm:p-3">
           <h1
-            class="text-2xl sm:text-3xl lg:text-4xl leading-snug sm:leading-relaxed font-semibold my-4 sm:my-8 mt-0 sm:mt-0"
+            ref="aboutHeading"
+            class="about-heading text-2xl sm:text-3xl lg:text-4xl leading-snug sm:leading-relaxed font-semibold my-4 sm:my-8 mt-0 sm:mt-0"
           >
-            I'm Raldin, a developer in Zamboanga del Norte by way of the
-            Philippines. For the last few years, I've helped businesses and
-            communities ship products that actually work. Right now I'm
-            building the
-            <span class="text-blue-500">intersection of logic and creativity</span>,
-            making the web feel
-            <span class="text-gray-500">a little more intelligent.</span>
+            <template v-for="(item, index) in aboutWords" :key="`${item.word}-${index}`">
+              <span
+                class="about-word-color-reveal"
+                :style="{
+                  '--word-color': item.color,
+                  '--word-color-progress': `${getWordColorProgress(index)}%`,
+                }"
+              >{{ item.word }}</span>{{ index < aboutWords.length - 1 ? ' ' : '' }}
+            </template>
           </h1>
 
           <div class="flex flex-wrap gap-2">
@@ -55,14 +127,16 @@ import ArrowIcon from '@/components/ui/ArrowIcon.vue'
 
           <div class="flex flex-wrap gap-2 mt-5">
             <a
-              href="#!"
-              class="bg-transparent rounded-full px-4 sm:px-5 py-2 text-sm sm:text-base text-black border hover:text-blue-500 transition-colors duration-300"
+              href="https://ph.linkedin.com/in/raldincasidar"
+              target="_blank"
+              class="group bg-transparent rounded-full px-4 sm:px-5 py-2 text-sm sm:text-base text-black border hover:text-blue-500 transition-colors duration-300"
             >
-              Discover my story
-              <ArrowIcon size-class="size-4 align-middle ml-1 inline" />
+              LinkedIn
+              <ArrowIcon size-class="size-4 align-middle ml-1 inline group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             </a>
             <a
-              href="#!"
+              href="https://drive.google.com/file/d/1gJp8SPxyT5xLZMMsQwI674lzwi0_xzNY/view?usp=drive_link"
+              target="_blank"
               class="bg-black rounded-full px-4 sm:px-5 py-2 text-sm sm:text-base text-white hover:scale-105 transition-transform duration-300"
             >
               <svg
@@ -87,3 +161,21 @@ import ArrowIcon from '@/components/ui/ArrowIcon.vue'
     </div>
   </div>
 </template>
+
+<style scoped>
+.about-heading {
+  color: #d1d5db;
+}
+
+.about-word-color-reveal {
+  --word-color-progress: 0%;
+  color: transparent;
+  background: linear-gradient(
+    to right,
+    var(--word-color) 0 var(--word-color-progress),
+    #d1d5db var(--word-color-progress) 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+</style>

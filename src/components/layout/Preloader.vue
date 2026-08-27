@@ -14,6 +14,8 @@ const exit = ref(false) // slide-up transition
 const hidden = ref(false)
 
 let timers = []
+let dataReady = true
+let dataReadyHandler
 
 function clearTimers() {
   timers.forEach((t) => clearTimeout(t))
@@ -21,6 +23,14 @@ function clearTimers() {
 }
 
 onMounted(() => {
+  dataReady = window.location.pathname !== '/'
+  if (!dataReady) {
+    dataReadyHandler = () => {
+      dataReady = true
+    }
+    window.addEventListener('preloader:data-ready', dataReadyHandler, { once: true })
+  }
+
   // Give the routed view a tick to mount before scanning for assets.
   timers.push(
     setTimeout(() => {
@@ -103,12 +113,22 @@ onMounted(() => {
         )
       }
 
-      Promise.race([Promise.all(assetPromises), hardTimeout]).then(finish)
+      const dataPromise = new Promise((resolve) => {
+        if (dataReady) return resolve()
+        window.addEventListener('preloader:data-ready', resolve, { once: true })
+      })
+
+      Promise.race([Promise.all([Promise.all(assetPromises), dataPromise]), hardTimeout]).then(finish)
     }, 50)
   )
 })
 
-onBeforeUnmount(() => clearTimers())
+onBeforeUnmount(() => {
+  if (dataReadyHandler) {
+    window.removeEventListener('preloader:data-ready', dataReadyHandler)
+  }
+  clearTimers()
+})
 </script>
 
 <template>

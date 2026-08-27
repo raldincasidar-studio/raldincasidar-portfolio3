@@ -2,55 +2,11 @@
 import WorkCard from '@/components/sections/WorkCard.vue'
 import router from '@/router/index.js'
 
-/**
- * "Selected works" grid.
- * Edit this array to add / remove / reorder projects — each entry maps
- * 1:1 to a `<WorkCard />` in the template below.
- */
+defineProps({
+  works: { type: Array, required: true },
+  isLoading: { type: Boolean, default: false },
+})
 
-
- const works = [
-  {
-    title: "Angel's Pizza Super App",
-    description:
-      'A modern pizza ordering app with real-time updates and seamless payment integration.',
-    tags: 'Mobile App, Community',
-    year: '2026',
-    videoSrc: '/assets/video/bangsamoro-app.mp4',
-    device: 'phone',
-    id: 'angels-pizza-app'
-  },
-  {
-    title: "Ella Batilona's Portfolio",
-    description:
-      "Portfolio website showcasing Ella's work and skills, expressing her skills thru her portfolio web experience.",
-    tags: 'Web App, Portfolio',
-    year: '2026',
-    videoSrc: '/assets/video/ella-web.mkv',
-    device: 'browser',
-    id: 'ella-batilona'
-  },
-  {
-    title: 'Bangsamoro Ramadhan App',
-    description:
-      'A companion app for the Bangsamoro Ramadhan community, providing time differences and prayer schedules.',
-    tags: 'Mobile App, Community',
-    year: '2026',
-    videoSrc: '/assets/video/ramadhan-app.mp4',
-    device: 'phone',
-    id: 'bangsamoro'
-  },
-  {
-    title: 'JRMSU Pasado Web App',
-    description:
-      'Mock board exam simulator and training platform for JRMSU students and alumni.',
-    tags: 'Web App, Education',
-    year: '2025',
-    videoSrc: '/assets/video/pasado-app.mkv',
-    device: 'browser',
-    id: 'pasado'
-  },
-]
 </script>
 
 <template>
@@ -71,7 +27,10 @@ import router from '@/router/index.js'
       </div>
 
       <!-- Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10 mt-6 sm:mt-10">
+      <div
+        v-show="!isLoading"
+        class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10 mt-6 sm:mt-10"
+      >
         <WorkCard v-for="work in works" :key="work.title" @click="router.push('/case-study/' + work.id)" v-bind="work" />
       </div>
     </div>

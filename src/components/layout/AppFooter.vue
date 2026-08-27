@@ -24,13 +24,13 @@ import ArrowIcon from '@/components/ui/ArrowIcon.vue'
           <p class="text-white/70 uppercase tracking-[0.3rem] sm:tracking-[0.4rem] text-xs mb-2">
             Facebook
           </p>
-          <a href="#!" class="block text-white text-sm sm:text-base">@raldincasidar</a>
+          <a href="https://fb.me/raldincasidar" target="_blank" class="block text-white text-sm sm:text-base">@raldincasidar</a>
         </div>
         <div>
           <p class="text-white/70 uppercase tracking-[0.3rem] sm:tracking-[0.4rem] text-xs mb-2">
             LinkedIn
           </p>
-          <a href="#!" class="block text-white text-sm sm:text-base">@raldincasidar</a>
+          <a href="https://ph.linkedin.com/in/raldincasidar" target="_blank" class="block text-white text-sm sm:text-base">@raldincasidar</a>
         </div>
         <div>
           <p class="text-white/70 uppercase tracking-[0.3rem] sm:tracking-[0.4rem] text-xs mb-2">

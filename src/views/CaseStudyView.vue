@@ -2,24 +2,28 @@
 /**
  * ════════════════════════════════════════════════════════════════════
  *  BLANK PAGE TEMPLATE
- *
- *  Copy this file to start a new page (e.g. `src/views/AboutView.vue`),
- *  then register it in `src/router/index.js` as a child of
- *  `DefaultLayout`. The Preloader, Navbar and Footer come along
- *  automatically — you only design the content in between.
- *
- *  Route meta flags available to every page:
- *    • `title`       → browser tab title
- *    • `navbarSolid` → navbar starts with its solid background
  * ════════════════════════════════════════════════════════════════════
  */
 
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, nextTick } from "vue";
 
 const device = ref("phone");
+const hero_device = ref("browser");
 const activeSlide = ref(0);
 const sliderElement = ref(null);
 const slideElements = ref([]);
+const storyHeading = ref(null);
+const storyColorProgress = ref(0);
+
+/* ──────────────────────────────────────────────
+ *  "SERVER" DATA + LOADING STATE
+ *  In real app this would come from an API call.
+ * ────────────────────────────────────────────── */
+const isLoading = ref(true);
+const pageData = ref(null);
+const storyWords = computed(() =>
+  pageData.value?.the_story?.match(/\S+/g) ?? [],
+);
 
 function setSlideElement(element) {
   if (element && !slideElements.value.includes(element)) {
@@ -63,74 +67,254 @@ function goToSlide(index) {
   activeSlide.value = nextIndex;
 }
 
+function updateStoryColor() {
+  const heading = storyHeading.value;
+  if (!heading) return;
+
+  const startLine = window.innerHeight * 0.80;
+  const endLine = window.innerHeight * 0.30;
+  const { top, height } = heading.getBoundingClientRect();
+  const headingCenter = top + height / 2;
+  storyColorProgress.value = Math.min(
+    100,
+    Math.max(
+      0,
+      ((startLine - headingCenter) / (startLine - endLine)) * 100,
+    ),
+  );
+}
+
+function getWordColorProgress(index) {
+  const wordCount = storyWords.value.length;
+  if (!wordCount) return 0;
+
+  const wordStart = (index / wordCount) * 100;
+  const wordEnd = ((index + 1) / wordCount) * 100;
+  return Math.min(
+    100,
+    Math.max(
+      0,
+      ((storyColorProgress.value - wordStart) / (wordEnd - wordStart)) * 100,
+    ),
+  );
+}
+
+/* ──────────────────────────────────────────────
+ *  MOCK "FETCH" — simulates an API/server response
+ * ────────────────────────────────────────────── */
+async function fetchPageData() {
+  isLoading.value = true;
+
+  // Simulate network delay
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+
+  pageData.value = {
+    client_name: "ANGEL’S PIZZA",
+    year: "2024-2026",
+    type: "MOBILE APP",
+    case_title:
+      "Turning a confusing checkout into Angel's Pizza's fastest-growing sales channel.",
+    case_description:
+      "Angel's Pizza didn't need another redesign, they needed the redesign they already had to actually work. Customers were getting lost mid-order, checkout took too many taps, and sales were flatlining because of it. I took the Figma files and turned them into a real, production-grade app.",
+
+    hero_video: {
+      type: 'browser',
+      src: "/assets/video/pasado-app.mkv",
+    },
+
+    the_story:
+      "I took the provided Figma design and turned it into a fully working production app — connecting the interface to real-world features like GPS, maps, notifications, authentication, backend services, and databases. The result was a faster, clearer ordering experience that helped double app sales after launch.",
+
+    contribution: {
+      role: "Full-stack App Developer",
+      client: "Angel’s Pizza",
+      year: "2024-2026",
+      discipline: "Mobile App Development, UX Engineering",
+      scope: ["Frontend", "Backend", "UX", "Database"],
+    },
+
+    numbers: [
+      { label: "APP SALES", value: "+100%" },
+      { label: "SALES AFTER LAUNCH", value: "2x" },
+      { label: "CORE INTEGRATION", value: "6+" },
+    ],
+
+    visual_identity: {
+      colors_title: "Built to whet the appetite Body",
+      colors_list: [
+        { name: "Lemon Orange", hex: "#FAD81E" },
+        { name: "Stop Orange", hex: "#FF5E42" },
+        { name: "Vanilla", hex: "#FFFFFF" },
+        { name: "Sky Blue", hex: "#06B7F8" },
+      ],
+      fonts_title: "Typeset for a fast, easy read Body",
+      fonts_list: [
+        { label: "PRIMARY", name: "POPPINS FONT" },
+        { label: "SECONDARY", name: "POPPINS FONT" },
+      ],
+    },
+
+    solutions_overview: {
+      description:
+        "The Figma design solved the visual problem. Making it feel fast, natural, and premium in someone's hand was a separate job. Here's what that looked like in practice.",
+      slides: [
+        {
+          video_url: "/assets/video/bangsamoro-app.mp4",
+          video_type: "phone",
+          description:
+            "Smooth, premium transitions between every screen — no jarring cuts, no dead space.",
+        },
+        {
+          video_url: "/assets/video/ramadhan-app.mp4",
+          video_type: "phone",
+          description:
+            "Ramadhan is the best of all time in the world since the world peace.",
+        },
+        {
+          video_url: "/assets/video/ella-web.mkv",
+          video_type: "web",
+          description:
+            "Ella's Portfolio is the world's leading portfolio in terms of design and interactability.",
+        },
+        {
+          video_url: "/assets/video/bangsamoro-app.mp4",
+          video_type: "phone",
+          description:
+            "Smooth, premium transitions between every screen — no jarring cuts, no dead space.",
+        },
+        {
+          video_url: "/assets/video/bangsamoro-app.mp4",
+          video_type: "phone",
+          description:
+            "Smooth, premium transitions between every screen — no jarring cuts, no dead space.",
+        },
+      ],
+    },
+  };
+
+  isLoading.value = false;
+
+  // Wait for the real slide elements to render, then init the slider
+  await nextTick();
+  updateActiveSlide();
+  updateStoryColor();
+}
+
 onMounted(() => {
+  fetchPageData();
+
   const slider = sliderElement.value;
   slider?.addEventListener("scroll", updateActiveSlide, { passive: true });
-  updateActiveSlide();
+  window.addEventListener("scroll", updateStoryColor, { passive: true });
+  window.addEventListener("resize", updateStoryColor);
+  updateStoryColor();
 });
 
 onBeforeUnmount(() => {
   sliderElement.value?.removeEventListener("scroll", updateActiveSlide);
+  window.removeEventListener("scroll", updateStoryColor);
+  window.removeEventListener("resize", updateStoryColor);
 });
 </script>
 
 <template>
-  <!--
-    The wrapper below offsets the fixed navbar. Replace everything inside
-    with your own sections — reuse components from `src/components/`
-    (e.g. `@/components/sections/HeroSection.vue`) or build new ones.
-  -->
+  <!-- HERO -->
   <section
     class="py-20 px-5 pb-12 sm:py-32 sm:px-8 sm:pb-16 lg:py-48 lg:px-10 lg:pb-20 bg-[linear-gradient(to_bottom,#17A6E3,#1794C9)]"
   >
     <div class="relative z-[2] max-w-[1500px] mx-auto w-full">
-      <h6 v-reveal class="font-bricolage text-mono text-white/50 text-xs sm:text-sm">
-        ANGEL’S PIZZA - 2024-2026 - MOBILE APP
+      <!-- Eyebrow -->
+      <template v-if="isLoading">
+        <div class="h-3 w-64 sm:w-80 bg-white/20 rounded animate-pulse"></div>
+      </template>
+      <h6
+        v-else
+        v-reveal
+        class="font-bricolage text-mono text-white/50 text-xs sm:text-sm"
+      >
+        {{ pageData.client_name }} - {{ pageData.year }} - {{ pageData.type }}
       </h6>
+
+      <!-- Title -->
+      <template v-if="isLoading">
+        <div class="my-4 sm:my-5 space-y-3">
+          <div class="h-8 sm:h-12 lg:h-14 w-full bg-white/20 rounded animate-pulse"></div>
+          <div class="h-8 sm:h-12 lg:h-14 w-4/5 bg-white/20 rounded animate-pulse"></div>
+        </div>
+      </template>
       <h2
+        v-else
         v-reveal
         class="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white my-4 sm:my-5 leading-tight"
       >
-        Turning a confusing checkout into Angel's Pizza's fastest-growing sales
-        channel.
+        {{ pageData.case_title }}
       </h2>
+
+      <!-- Description -->
+      <template v-if="isLoading">
+        <div class="max-w-xl sm:max-w-2xl space-y-2">
+          <div class="h-3 sm:h-4 w-full bg-white/10 rounded animate-pulse"></div>
+          <div class="h-3 sm:h-4 w-full bg-white/10 rounded animate-pulse"></div>
+          <div class="h-3 sm:h-4 w-3/4 bg-white/10 rounded animate-pulse"></div>
+        </div>
+      </template>
       <p
+        v-else
         v-reveal
         class="text-white max-w-xl sm:max-w-2xl text-base sm:text-lg leading-relaxed sm:leading-loose text-white/60"
       >
-        Angel's Pizza didn't need another redesign, they needed the redesign
-        they already had to actually work. Customers were getting lost
-        mid-order, checkout took too many taps, and sales were flatlining
-        because of it. I took the Figma files and turned them into a real,
-        production-grade app.
+        {{ pageData.case_description }}
       </p>
 
       <div
         v-reveal
         class="mobile overflow-hidden relative max-h-[700px] max-h-lvh mt-12 sm:mt-16 lg:mt-20"
       >
-        <!-- Mobile mockup -->
-        <div
-          class="relative box-border overflow-hidden group-hover:-translate-y-3 mx-auto transition-transform duration-500 rounded-3xl lg:rounded-[1.4vw] w-[min(72vw,420px)] h-auto aspect-[9/19] outline outline-white/20 bg-gray-800 border-4 sm:border-[0.4vw] border-gray-800 shadow-lg group-hover:shadow-xl"
-        >
-          <!-- Notch -->
+        <!-- Loading skeleton for mockup -->
+        <template v-if="isLoading">
           <div
-            class="absolute top-[0.8%] left-[50%] w-[30%] h-[3.5%] translate-x-[-50%] bg-gray-900 rounded-full z-10"
+            class="relative box-border overflow-hidden mx-auto rounded-3xl lg:rounded-[1.4vw] w-full h-auto aspect-[16/9] bg-white/10 animate-pulse border-4 sm:border-[0.4vw] border-white/10"
           ></div>
+        </template>
 
-          <video
-            autoplay
-            muted
-            loop
-            playsinline
-            class="absolute top-0 left-0 w-full h-full object-cover"
+        <template v-else>
+          <!-- Mobile mockup -->
+          <div
+            v-if="pageData.hero_video.type == 'phone'"
+            class="relative box-border overflow-hidden group-hover:-translate-y-3 mx-auto transition-transform duration-500 rounded-3xl lg:rounded-[1.4vw] w-[min(72vw,420px)] h-auto aspect-[9/19] outline outline-white/20 bg-gray-800 border-4 sm:border-[0.4vw] border-gray-800 shadow-lg group-hover:shadow-xl"
           >
-            <source
-              :src="'/assets/video/bangsamoro-app.mp4'"
-              type="video/mp4"
-            />
-          </video>
-        </div>
+            <!-- Notch -->
+            <div
+              class="absolute top-[0.8%] left-[50%] w-[30%] h-[3.5%] translate-x-[-50%] bg-gray-900 rounded-full z-10"
+            ></div>
+
+            <video
+              autoplay
+              muted
+              loop
+              playsinline
+              class="absolute top-0 left-0 w-full h-full object-cover"
+            >
+              <source :src="pageData.hero_video.src" type="video/mp4" />
+            </video>
+          </div>
+
+          <!-- browser mockup -->
+          <div
+            v-if="pageData.hero_video.type == 'browser'"
+            class="relative box-border overflow-hidden group-hover:-translate-y-3 mx-auto transition-transform duration-500 rounded-3xl lg:rounded-[1.4vw] w-full h-auto aspect-[16/9] outline outline-white/20 bg-gray-800 border-4 sm:border-[0.4vw] border-gray-800 shadow-lg group-hover:shadow-xl"
+          >
+            <video
+              autoplay
+              muted
+              loop
+              playsinline
+              class="absolute top-0 left-0 w-full h-full object-cover"
+            >
+              <source :src="pageData.hero_video.src" type="video/mp4" />
+            </video>
+          </div>
+        </template>
       </div>
     </div>
   </section>
@@ -142,18 +326,28 @@ onBeforeUnmount(() => {
     >
       <div v-reveal class="w-full lg:w-2/3 sm:p-4">
         <p class="text-subtext text-blue-500 font-geist text-xs sm:text-sm">
-          - THE STORY
+          - CHAPTER 01: THE STORY
         </p>
+
+        <!-- Story text -->
+        <template v-if="isLoading">
+          <div class="my-4 sm:my-5 space-y-3">
+            <div class="h-6 sm:h-8 w-full bg-gray-200 rounded animate-pulse"></div>
+            <div class="h-6 sm:h-8 w-full bg-gray-200 rounded animate-pulse"></div>
+            <div class="h-6 sm:h-8 w-2/3 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+        </template>
         <h2
+          v-else
+          ref="storyHeading"
           class="text-2xl sm:text-3xl lg:text-4xl my-4 sm:my-5 leading-normal sm:leading-relaxed font-semibold"
         >
-          I took the provided Figma design and turned it into a fully working
-          production app — connecting the interface to real-world features like
-          GPS, maps, notifications, authentication, backend services, and
-          databases. The result was a faster, clearer ordering experience that
-          helped <span class="text-gray-400"
-            >double app sales after launch.</span
-          >
+          <template v-for="(word, index) in storyWords" :key="`${word}-${index}`">
+            <span
+              class="story-word-color-reveal"
+              :style="{ '--word-color-progress': `${getWordColorProgress(index)}%` }"
+            >{{ word }}</span>{{ index < storyWords.length - 1 ? " " : "" }}
+          </template>
         </h2>
 
         <div
@@ -178,84 +372,92 @@ onBeforeUnmount(() => {
           </a>
         </div>
       </div>
+
       <div v-reveal class="w-full lg:w-1/3 sm:p-4 mt-8 lg:mt-0">
         <div class="flex flex-wrap">
-          <div class="w-1/2 px-2 py-4 sm:py-5">
-            <p class="font-giest text-gray-400 text-xs sm:text-sm">ROLE</p>
-            <h5 class="font-giest text-gray-800 text-base sm:text-xl mt-2">
-              Full-stack App Developer
-            </h5>
-          </div>
-          <div class="w-1/2 px-2 py-4 sm:py-5">
-            <p class="font-giest text-gray-400 text-xs sm:text-sm">CLIENT</p>
-            <h5 class="font-giest text-gray-800 text-base sm:text-xl mt-2">
-              Angel’s Pizza
-            </h5>
-          </div>
-          <div class="w-1/2 px-2 py-4 sm:py-5">
-            <p class="font-giest text-gray-400 text-xs sm:text-sm">YEAR</p>
-            <h5 class="font-giest text-gray-800 text-base sm:text-xl mt-2">
-              2024-2026
-            </h5>
-          </div>
-          <div class="w-1/2 px-2 py-4 sm:py-5">
-            <p class="font-giest text-gray-400 text-xs sm:text-sm">
-              DISCIPLINE
-            </p>
-            <h5 class="font-giest text-gray-800 text-base sm:text-xl mt-2">
-              Mobile App Development, UX Engineering
-            </h5>
-          </div>
+          <!-- Contribution info -->
+          <template v-if="isLoading">
+            <div v-for="n in 4" :key="n" class="w-1/2 px-2 py-4 sm:py-5">
+              <div class="h-2.5 w-16 bg-gray-200 rounded animate-pulse"></div>
+              <div class="h-5 sm:h-6 w-32 bg-gray-300 rounded animate-pulse mt-2"></div>
+            </div>
+          </template>
+
+          <template v-else>
+            <div class="w-1/2 px-2 py-4 sm:py-5">
+              <p class="font-giest text-gray-400 text-xs sm:text-sm">ROLE</p>
+              <h5 class="font-giest text-gray-800 text-base sm:text-xl mt-2">
+                {{ pageData.contribution.role }}
+              </h5>
+            </div>
+            <div class="w-1/2 px-2 py-4 sm:py-5">
+              <p class="font-giest text-gray-400 text-xs sm:text-sm">CLIENT</p>
+              <h5 class="font-giest text-gray-800 text-base sm:text-xl mt-2">
+                {{ pageData.contribution.client }}
+              </h5>
+            </div>
+            <div class="w-1/2 px-2 py-4 sm:py-5">
+              <p class="font-giest text-gray-400 text-xs sm:text-sm">YEAR</p>
+              <h5 class="font-giest text-gray-800 text-base sm:text-xl mt-2">
+                {{ pageData.contribution.year }}
+              </h5>
+            </div>
+            <div class="w-1/2 px-2 py-4 sm:py-5">
+              <p class="font-giest text-gray-400 text-xs sm:text-sm">
+                DISCIPLINE
+              </p>
+              <h5 class="font-giest text-gray-800 text-base sm:text-xl mt-2">
+                {{ pageData.contribution.discipline }}
+              </h5>
+            </div>
+          </template>
+
+          <!-- Scope -->
           <div class="w-full px-2 py-4 sm:py-5">
             <p class="font-giest text-gray-400 text-xs sm:text-sm mb-2">
               SCOPE
             </p>
-            <span
-              class="p-1.5 sm:p-2 text-xs sm:text-sm px-3 sm:px-4 m-1 border border-gray-300 text-gray-700 rounded-full inline-block"
-              >Frontend</span
-            >
-            <span
-              class="p-1.5 sm:p-2 text-xs sm:text-sm px-3 sm:px-4 m-1 border border-gray-300 text-gray-700 rounded-full inline-block"
-              >Backend</span
-            >
-            <span
-              class="p-1.5 sm:p-2 text-xs sm:text-sm px-3 sm:px-4 m-1 border border-gray-300 text-gray-700 rounded-full inline-block"
-              >UX</span
-            >
-            <span
-              class="p-1.5 sm:p-2 text-xs sm:text-sm px-3 sm:px-4 m-1 border border-gray-300 text-gray-700 rounded-full inline-block"
-              >Database</span
-            >
+
+            <template v-if="isLoading">
+              <span
+                v-for="n in 4"
+                :key="n"
+                class="inline-block h-8 sm:h-9 w-20 sm:w-24 m-1 rounded-full bg-gray-200 animate-pulse"
+              ></span>
+            </template>
+
+            <template v-else>
+              <span
+                v-for="(item, index) in pageData.contribution.scope"
+                :key="index"
+                class="p-1.5 sm:p-2 text-xs sm:text-sm px-3 sm:px-4 m-1 border border-gray-300 text-gray-700 rounded-full inline-block"
+                >{{ item }}</span
+              >
+            </template>
           </div>
         </div>
 
+        <!-- Numbers -->
         <div
           class="border-t border-gray-300 p-2 py-5 flex flex-wrap justify-between gap-4"
         >
-          <div>
-            <h4 class="font-bricolage font-bold text-xl sm:text-2xl text-left">
-              +100%
-            </h4>
-            <p class="text-xs sm:text-sm text-gray-400 mt-1 text-left">
-              APP SALES
-            </p>
-          </div>
-          <div>
-            <h4 class="font-bricolage font-bold text-xl sm:text-2xl text-left">
-              2x
-            </h4>
-            <p class="text-xs sm:text-sm text-gray-400 mt-1 text-left">
-              SALES AFTER LAUNCH
-            </p>
-          </div>
-          <div>
-            <h4 class="font-bricolage font-bold text-xl sm:text-2xl text-left">
-              6+
-            </h4>
-            <p class="text-xs sm:text-sm text-gray-400 mt-1 text-left">
-              CORE INTEGRATION
-            </p>
-          </div>
+          <template v-if="isLoading">
+            <div v-for="n in 3" :key="n">
+              <div class="h-6 sm:h-7 w-14 bg-gray-300 rounded animate-pulse"></div>
+              <div class="h-2.5 w-20 bg-gray-200 rounded animate-pulse mt-2"></div>
+            </div>
+          </template>
+
+          <template v-else>
+            <div v-for="(stat, index) in pageData.numbers" :key="index">
+              <h4 class="font-bricolage font-bold text-xl sm:text-2xl text-left">
+                {{ stat.value }}
+              </h4>
+              <p class="text-xs sm:text-sm text-gray-400 mt-1 text-left">
+                {{ stat.label }}
+              </p>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -265,7 +467,7 @@ onBeforeUnmount(() => {
   <section class="py-20 sm:py-28 lg:py-40 px-5 bg-[radial-gradient(#132132,#000000)]">
     <div class="relative max-w-[1300px] mx-auto w-full">
       <h5 v-reveal class="text-center text-xs sm:text-sm text-sky-300 tracking-wide">
-        CHAPTER 01
+        CHAPTER 02
       </h5>
       <h2
         v-reveal
@@ -274,6 +476,7 @@ onBeforeUnmount(() => {
         The Visual Identity
       </h2>
       <div class="flex flex-col lg:flex-row">
+        <!-- Colors -->
         <div v-reveal class="w-full lg:w-1/2 p-5 sm:p-8 lg:p-10">
           <div class="mb-2">
             <div
@@ -297,47 +500,43 @@ onBeforeUnmount(() => {
           </div>
 
           <p class="text-sky-300 mt-4 sm:mt-5 text-xs sm:text-sm">COLORS</p>
+
+          <template v-if="isLoading">
+            <div class="h-6 sm:h-8 w-3/4 bg-white/10 rounded animate-pulse my-4 sm:my-5 mb-6 sm:mb-10"></div>
+          </template>
           <h4
+            v-else
             class="text-white text-xl sm:text-2xl lg:text-3xl font-bold my-4 sm:my-5 mb-6 sm:mb-10"
           >
-            Built to whet the appetite Body
+            {{ pageData.visual_identity.colors_title }}
           </h4>
 
           <div class="grid grid-cols-2 gap-2 sm:gap-3">
-            <div
-              class="bg-[#FAD81E] py-8 sm:py-10 lg:py-13 rounded-3xl sm:rounded-4xl px-3 text-center text-black/90"
-            >
-              <h5 class="text-sm sm:text-lg font-bold mb-1 sm:mb-2">
-                Lemon Orange
-              </h5>
-              <p class="text-xs sm:text-base">#FAD81E</p>
-            </div>
-            <div
-              class="bg-[#FF5E42] py-8 sm:py-10 lg:py-13 rounded-3xl sm:rounded-4xl px-3 text-center text-black/90"
-            >
-              <h5 class="text-sm sm:text-lg font-bold mb-1 sm:mb-2">
-                Stop Orange
-              </h5>
-              <p class="text-xs sm:text-base">#FF5E42</p>
-            </div>
-            <div
-              class="bg-[#FFFFFF] py-8 sm:py-10 lg:py-13 rounded-3xl sm:rounded-4xl px-3 text-center text-black/90"
-            >
-              <h5 class="text-sm sm:text-lg font-bold mb-1 sm:mb-2">
-                Vanilla
-              </h5>
-              <p class="text-xs sm:text-base">#FFFFFF</p>
-            </div>
-            <div
-              class="bg-[#06B7F8] py-8 sm:py-10 lg:py-13 rounded-3xl sm:rounded-4xl px-3 text-center text-black/90"
-            >
-              <h5 class="text-sm sm:text-lg font-bold mb-1 sm:mb-2">
-                Sky Blue
-              </h5>
-              <p class="text-xs sm:text-base">#06B7F8</p>
-            </div>
+            <template v-if="isLoading">
+              <div
+                v-for="n in 4"
+                :key="n"
+                class="py-8 sm:py-10 lg:py-13 rounded-3xl sm:rounded-4xl px-3 bg-white/10 animate-pulse"
+              ></div>
+            </template>
+
+            <template v-else>
+              <div
+                v-for="(color, index) in pageData.visual_identity.colors_list"
+                :key="index"
+                :style="{ backgroundColor: color.hex }"
+                class="py-8 sm:py-10 lg:py-13 rounded-3xl sm:rounded-4xl px-3 text-center text-black/90"
+              >
+                <h5 class="text-sm sm:text-lg font-bold mb-1 sm:mb-2">
+                  {{ color.name }}
+                </h5>
+                <p class="text-xs sm:text-base">{{ color.hex }}</p>
+              </div>
+            </template>
           </div>
         </div>
+
+        <!-- Fonts -->
         <div v-reveal class="w-full lg:w-1/2 p-5 sm:p-8 lg:p-10 mt-4 lg:mt-0">
           <div class="mb-2">
             <div
@@ -361,24 +560,36 @@ onBeforeUnmount(() => {
           </div>
 
           <p class="text-sky-300 mt-4 sm:mt-5 text-xs sm:text-sm">FONTS</p>
+
+          <template v-if="isLoading">
+            <div class="h-6 sm:h-8 w-3/4 bg-white/10 rounded animate-pulse my-4 sm:my-5 mb-6 sm:mb-10"></div>
+          </template>
           <h4
+            v-else
             class="text-white text-xl sm:text-2xl lg:text-3xl font-bold my-4 sm:my-5 mb-6 sm:mb-10"
           >
-            Typeset for a fast, easy read Body
+            {{ pageData.visual_identity.fonts_title }}
           </h4>
 
-          <div class="py-3 sm:py-4">
-            <p class="text-sky-300 mb-2 text-xs sm:text-sm">PRIMARY</p>
-            <h4 class="text-lg sm:text-2xl text-white my-2 font-semibold">
-              POPPINS FONT
-            </h4>
-          </div>
-          <div class="py-3 sm:py-4">
-            <p class="text-sky-300 mb-2 text-xs sm:text-sm">SECONDARY</p>
-            <h4 class="text-lg sm:text-2xl text-white my-2 font-semibold">
-              POPPINS FONT
-            </h4>
-          </div>
+          <template v-if="isLoading">
+            <div v-for="n in 2" :key="n" class="py-3 sm:py-4">
+              <div class="h-2.5 w-16 bg-white/10 rounded animate-pulse mb-2"></div>
+              <div class="h-6 sm:h-7 w-40 bg-white/20 rounded animate-pulse my-2"></div>
+            </div>
+          </template>
+
+          <template v-else>
+            <div
+              v-for="(font, index) in pageData.visual_identity.fonts_list"
+              :key="index"
+              class="py-3 sm:py-4"
+            >
+              <p class="text-sky-300 mb-2 text-xs sm:text-sm">{{ font.label }}</p>
+              <h4 class="text-lg sm:text-2xl text-white my-2 font-semibold">
+                {{ font.name }}
+              </h4>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -388,21 +599,27 @@ onBeforeUnmount(() => {
   <section class="py-20 sm:py-28 lg:py-40 px-5 bg-[radial-gradient(#BBE6F6,#FFFFFF)]">
     <div class="relative max-w-[1300px] mx-auto w-full">
       <h5 v-reveal class="text-center text-xs sm:text-sm text-sky-500 tracking-wide">
-        CHAPTER 02
+        CHAPTER 03
       </h5>
       <h2
         v-reveal
         class="text-gray-800 text-3xl sm:text-4xl lg:text-5xl my-6 sm:my-10 font-semibold text-center"
       >
-        Solutions Highlight
+        Solutions Overview
       </h2>
+
+      <template v-if="isLoading">
+        <div class="max-w-2xl mx-auto mb-8 sm:mb-10 space-y-2 px-2">
+          <div class="h-3 sm:h-4 w-full bg-gray-200 rounded animate-pulse"></div>
+          <div class="h-3 sm:h-4 w-5/6 mx-auto bg-gray-200 rounded animate-pulse"></div>
+        </div>
+      </template>
       <p
+        v-else
         v-reveal
         class="max-w-2xl mb-8 sm:mb-10 text-sm sm:text-base text-center mx-auto text-black/70 leading-relaxed px-2"
       >
-        The Figma design solved the visual problem. Making it feel fast,
-        natural, and premium in someone's hand was a separate job. Here's what
-        that looked like in practice.
+        {{ pageData.solutions_overview.description }}
       </p>
     </div>
 
@@ -414,58 +631,71 @@ onBeforeUnmount(() => {
     >
       <!-- Preview container -->
       <div class="case-study-slider-track text-center">
-        <div
-          v-for="i in 5"
-          :key="i"
-          :ref="setSlideElement"
-          class="case-study-slide"
-        >
-          <div
-            class="relative group aspect-[16/9] h-auto overflow-hidden gradient rounded-2xl sm:rounded-3xl lg:rounded-[1.4vw] flex justify-center items-center snap-center"
-          >
-            <!-- Phone mockup -->
+        <!-- Skeleton slides -->
+        <template v-if="isLoading">
+          <div v-for="n in 5" :key="n" class="case-study-slide">
             <div
-              v-if="device === 'phone'"
-              class="scale-125 sm:scale-150 -mb-[15vw] sm:-mb-[15vw] relative overflow-hidden group-hover:scale-[1.3] sm:group-hover:scale-[1.55] transition-transform duration-500 rounded-2xl sm:rounded-3xl lg:rounded-[1.4vw] h-5/6 w-auto aspect-[9/19] bg-gray-800 border-4 sm:border-[0.4vw] border-gray-800 shadow-lg group-hover:shadow-xl"
-            >
-              <video
-                autoplay
-                muted
-                loop
-                playsinline
-                class="absolute top-0 left-0 w-full h-full object-cover"
-              >
-                <source :src="'/assets/video/bangsamoro-app.mp4'" type="video/mp4" />
-              </video>
-            </div>
-            <!-- Browser mockup -->
-            <div
-              v-else
-              class="scale-90 relative overflow-hidden group-hover:scale-95 transition-transform duration-500 rounded-xl sm:rounded-2xl lg:rounded-[1.2vw] h-5/6 w-auto aspect-[16/9] bg-gray-800 border-4 sm:border-[0.4vw] border-gray-800 shadow-lg group-hover:shadow-xl"
-            >
-              <video
-                autoplay
-                muted
-                loop
-                playsinline
-                class="absolute top-0 left-0 w-full h-full object-cover"
-              >
-                <source :src="'/assets/video/bangsamoro-app.mp4'" type="video/mp4" />
-              </video>
-            </div>
+              class="relative aspect-[16/9] h-auto overflow-hidden rounded-2xl sm:rounded-3xl lg:rounded-[1.4vw] bg-gray-200 animate-pulse flex justify-center items-center"
+            ></div>
+            <div class="h-3 sm:h-4 w-4/5 mx-auto bg-gray-200 rounded animate-pulse my-4 sm:my-5"></div>
           </div>
-          <p class="text-center my-4 sm:my-5 text-sm sm:text-base text-black/70 px-2">
-            Smooth, premium transitions between every screen — no jarring
-            cuts, no dead space.
-          </p>
-        </div>
+        </template>
+
+        <!-- Real slides -->
+        <template v-else>
+          <div
+            v-for="(slide, i) in pageData.solutions_overview.slides"
+            :key="i"
+            :ref="setSlideElement"
+            class="case-study-slide"
+          >
+            <div
+              class="relative group aspect-[16/9] h-auto overflow-hidden gradient rounded-2xl sm:rounded-3xl lg:rounded-[1.4vw] flex justify-center items-center snap-center"
+            >
+              <!-- Phone mockup -->
+              <div
+                v-if="slide.video_type === 'phone'"
+                class="scale-125 sm:scale-150 -mb-[15vw] sm:-mb-[15vw] relative overflow-hidden group-hover:scale-[1.3] sm:group-hover:scale-[1.55] transition-transform duration-500 rounded-2xl sm:rounded-3xl lg:rounded-[1.4vw] h-5/6 w-auto aspect-[9/19] bg-gray-800 border-4 sm:border-[0.4vw] border-gray-800 shadow-lg group-hover:shadow-xl"
+              >
+                <video
+                  autoplay
+                  muted
+                  loop
+                  playsinline
+                  class="absolute top-0 left-0 w-full h-full object-cover"
+                >
+                  <source :src="slide.video_url" type="video/mp4" />
+                </video>
+              </div>
+              <!-- Browser mockup -->
+              <div
+                v-else
+                class="scale-90 relative overflow-hidden group-hover:scale-95 transition-transform duration-500 rounded-xl sm:rounded-2xl lg:rounded-[1.2vw] h-5/6 w-auto aspect-[16/9] bg-gray-800 border-4 sm:border-[0.4vw] border-gray-800 shadow-lg group-hover:shadow-xl"
+              >
+                <video
+                  autoplay
+                  muted
+                  loop
+                  playsinline
+                  class="absolute top-0 left-0 w-full h-full object-cover"
+                >
+                  <source :src="slide.video_url" type="video/mp4" />
+                </video>
+              </div>
+            </div>
+            <p class="text-center my-4 sm:my-5 text-sm sm:text-base text-black/70 px-2">
+              {{ slide.description }}
+            </p>
+          </div>
+        </template>
       </div>
     </div>
+
     <div class="slider-buttons flex justify-center gap-3 sm:gap-5 mt-5">
       <button
         type="button"
         aria-label="Previous solution highlight"
-        :disabled="activeSlide === 0"
+        :disabled="isLoading || activeSlide === 0"
         class="inline-block p-3 sm:p-4 border border-black/20 rounded-full text-black/60 disabled:opacity-30 disabled:cursor-not-allowed hover:border-black/50 transition-colors"
         @click="goToSlide(activeSlide - 1)"
       >
@@ -487,7 +717,7 @@ onBeforeUnmount(() => {
       <button
         type="button"
         aria-label="Next solution highlight"
-        :disabled="activeSlide === 4"
+        :disabled="isLoading || activeSlide === 4"
         class="inline-block p-3 sm:p-4 border border-black/20 rounded-full text-black/60 disabled:opacity-30 disabled:cursor-not-allowed hover:border-black/50 transition-colors"
         @click="goToSlide(activeSlide + 1)"
       >
@@ -514,6 +744,18 @@ onBeforeUnmount(() => {
 .case-study-slider {
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
+}
+
+.story-word-color-reveal {
+  --word-color-progress: 0%;
+  color: transparent;
+  background: linear-gradient(
+    to right,
+    #111827 0 var(--word-color-progress),
+    #d1d5db var(--word-color-progress) 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
 }
 
 .case-study-slider-track {

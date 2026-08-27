@@ -69,7 +69,7 @@ onBeforeUnmount(() => window.removeEventListener('preloader:done', showHero))
         <div class="hero-reveal-item hero-reveal-actions mt-8 sm:mt-10 flex flex-col sm:flex-row gap-3 sm:gap-4">
           <a
             href="#works"
-            class="py-3 px-6 sm:px-8 rounded-full font-semibold text-black/70 bg-white text-sm sm:text-base lg:text-lg hover:bg-blue hover:opacity-80 transition-opacity duration-300 flex items-center justify-center gap-2"
+            class="py-3 px-6 sm:px-8 rounded-full font-semibold text-black/70 bg-white text-sm sm:text-base lg:text-lg hover:opacity-80 transition-opacity duration-300 flex items-center justify-center gap-2"
           >
             View my work
             <svg
@@ -88,7 +88,7 @@ onBeforeUnmount(() => window.removeEventListener('preloader:done', showHero))
           </a>
           <a
             href="#about"
-            class="py-3 px-6 sm:px-8 rounded-full font-semibold bg-transparent outline outline-white text-white text-sm sm:text-base lg:text-lg hover:bg-blue hover:opacity-80 transition-colors duration-300 text-center"
+            class="py-3 px-6 sm:px-8 rounded-full font-semibold bg-transparent outline outline-white text-white text-sm sm:text-base lg:text-lg  hover:opacity-80 transition-colors duration-300 text-center"
           >
             Discover my story
           </a>

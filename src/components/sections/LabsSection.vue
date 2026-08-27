@@ -1,33 +1,10 @@
 <script setup>
 import LabCard from '@/components/sections/LabCard.vue'
 
-/**
- * "Apps I shipped" labs grid.
- * Edit this array to add / remove / reorder lab entries.
- */
-const labs = [
-  {
-    title: "Angel's Pizza Superapp",
-    description: 'A mobile app for ordering pizza and managing restaurant operations.',
-    category: 'Mobile App, Pizza',
-    videoSrc: '/assets/video/bangsamoro-app.mp4',
-  },
-  {
-    title: 'Bangsamoro Ramadhan App',
-    description:
-      'A mobile app for managing Bangsamoro Ramadhan activities and information.',
-    category: 'Mobile App, Religion',
-    videoSrc: '/assets/video/ramadhan-app.mp4',
-  },
-  {
-    // NOTE: placeholder duplicate in the original — swap in a real project.
-    title: "Angel's Pizza Superapp",
-    description: 'A mobile app for ordering pizza and managing restaurant operations.',
-    category: 'Mobile App, Pizza',
-    videoSrc: '/assets/video/bangsamoro-app.mp4',
-    className: 'sm:col-span-2 lg:col-span-1',
-  },
-]
+defineProps({
+  labs: { type: Array, required: true },
+  isLoading: { type: Boolean, default: false },
+})
 </script>
 
 <template>
@@ -51,7 +28,10 @@ const labs = [
       </div>
 
       <!-- Grid -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10 mt-6 sm:mt-10">
+      <div
+        v-show="!isLoading"
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10 mt-6 sm:mt-10"
+      >
         <LabCard
           v-for="lab in labs"
           :key="lab.title + lab.category"
