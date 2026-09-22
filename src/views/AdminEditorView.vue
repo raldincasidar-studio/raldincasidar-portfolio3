@@ -146,7 +146,7 @@ async function save(statusOverride) {
 }
 
 function back() { if (dirty.value && !confirm('You have unsaved changes. Leave without saving?')) return; router.push(`/admin/${type.value}`) }
-watch(() => route.params.id, load, { immediate: true })
+watch(() => [props.type, route.params.id], load, { immediate: true })
 watch(draft, persistLocalDraft, { deep: true })
 </script>
 
