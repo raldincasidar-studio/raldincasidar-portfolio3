@@ -840,3 +840,51 @@ Response:
   }
 }
 ```
+
+## 14. IP and geolocation analytics
+
+The frontend calls the geolocation provider directly; the backend does not call or proxy it.
+
+```text
+GET https://ip-api.com/json/?fields=status,message,query,continent,continentCode,country,countryCode,region,regionName,city,district,zip,lat,lon,timezone,isp,org,as,proxy,hosting,mobile
+```
+
+The frontend then submits the result with the first-party analytics request:
+
+```json
+{
+  "eventType": "page_view",
+  "path": "/",
+  "resourceType": "page",
+  "anonymousSessionId": "session-id",
+  "ipAddress": "24.48.0.1",
+  "geo": {
+    "country": "Canada",
+    "countryCode": "CA",
+    "regionName": "Quebec",
+    "city": "Montreal",
+    "lat": 45.6085,
+    "lon": -73.5493,
+    "timezone": "America/Toronto",
+    "isp": "Example ISP",
+    "proxy": false,
+    "hosting": false,
+    "mobile": false
+  },
+  "deviceCategory": "desktop"
+}
+```
+
+The server validates the IP and geo fields, stores a salted IP hash for aggregation, and retains the raw IP only for the analytics retention window. Public endpoints never return IP or geo records.
+
+The authenticated analytics response additionally contains:
+
+```json
+{
+  "locations": [{ "country": "Canada", "countryCode": "CA", "visits": 12, "uniqueVisitors": 8 }],
+  "visitors": [{ "ipAddress": "24.48.0.1", "country": "Canada", "city": "Montreal", "isp": "Example ISP", "visits": 4 }],
+  "isps": [{ "name": "Example ISP", "visits": 8 }]
+}
+```
+
+The admin UI masks `ipAddress` before display.

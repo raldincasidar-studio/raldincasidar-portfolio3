@@ -149,3 +149,19 @@ Replace the dashboard analytics placeholder with API-backed cards and charts:
 Use an accessible data table fallback. Fetch analytics independently from content counts so a slow or failed analytics request does not block dashboard navigation. Show `Analytics unavailable` with retry instead of fabricated zeroes when the request fails.
 
 Add lightweight public event tracking after the backend collector exists. Page views must be queued and sent with `navigator.sendBeacon` where available, or a low-priority fetch. Event failures must be silent to the visitor and must never delay the preloader.
+
+## IP and geolocation dashboard integration
+
+Add a browser-only visitor lookup module. It calls `https://ip-api.com/json/` with an allowlisted `fields` list, caches the result per session, and submits the IP plus safe geolocation fields to `/api/analytics/events`. It is fire-and-forget and never blocks public content or the preloader.
+
+The dashboard should present:
+
+- visits, unique IP groups, and page views;
+- daily traffic;
+- countries and country share bars;
+- city/ISP visitor groups with masked IP;
+- proxy/VPN/hosting and mobile indicators when available;
+- referrals, devices, and top content;
+- 7/30/90-day filters.
+
+Raw IP addresses must not be shown in the UI by default. The dashboard should communicate that visitor location is approximate and based on an external IP geolocation service.

@@ -198,3 +198,18 @@ Use MongoDB aggregation pipelines with bounded date ranges, indexes on `occurred
 6. Add analytics ingestion with rate limiting and origin/path normalization.
 7. Add analytics aggregation endpoints and tests for date ranges, empty data, and abuse limits.
 8. Integrate frontend maintenance guard, settings actions, logs table, and dashboard charts.
+
+## Visitor IP and geolocation analytics
+
+The browser will call the client-only `ip-api.com` JSON endpoint once per visitor session. The backend never calls ip-api.com and never proxies the geolocation request. The browser submits the returned IP and safe geolocation fields with the first-party analytics event.
+
+- Use HTTPS in production: `https://ip-api.com/json/?fields=...`.
+- Cache the result in `sessionStorage` to avoid repeated third-party calls.
+- Keep the existing analytics rate limit.
+- Store a salted `ipHash` for aggregation and a short-retention `ipAddress` for authenticated admin visitor analysis.
+- Mask IP addresses in the dashboard UI.
+- Keep a 90-day TTL on analytics events.
+- Do not expose visitor IPs or geo data through public endpoints.
+- Document consent/privacy/retention requirements before production activation.
+
+The dashboard analytics response now includes country totals, visitor groups, and ISP totals alongside traffic, referrals, devices, and top content.

@@ -5,6 +5,7 @@ import AdminLoginView from '@/views/AdminLoginView.vue'
 import MaintenanceView from '@/views/MaintenanceView.vue'
 import { useAdminSession } from '@/composables/useAdminSession.js'
 import { publicApi } from '@/api/admin.js'
+import { getVisitorGeo } from '@/api/visitorAnalytics.js'
 
 const routes = [
   { path: '/maintenance', name: 'maintenance', component: MaintenanceView, meta: { title: 'Maintenance' } },
@@ -48,10 +49,13 @@ function analyticsSessionId() {
   if (!value) { value = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`; localStorage.setItem(key, value) }
   return value
 }
-function trackPageView(to) {
+async function trackPageView(to) {
   if (to.path.startsWith('/admin') || to.name === 'maintenance') return
-  const resourceType = to.name === 'case-study' ? 'work' : 'page'
-  publicApi.track({ eventType: resourceType === 'work' ? 'case_study_view' : 'page_view', path: to.path, resourceType, resourceSlug: typeof to.params.id === 'string' ? to.params.id : undefined, referrerOrigin: document.referrer || undefined, anonymousSessionId: analyticsSessionId(), deviceCategory: window.innerWidth < 640 ? 'mobile' : window.innerWidth < 1024 ? 'tablet' : 'desktop' }).catch(() => {})
+  try {
+    const visitor = await getVisitorGeo()
+    const resourceType = to.name === 'case-study' ? 'work' : 'page'
+    await publicApi.track({ eventType: resourceType === 'work' ? 'case_study_view' : 'page_view', path: to.path, resourceType, resourceSlug: typeof to.params.id === 'string' ? to.params.id : undefined, referrerOrigin: document.referrer || undefined, anonymousSessionId: analyticsSessionId(), deviceCategory: window.innerWidth < 640 ? 'mobile' : window.innerWidth < 1024 ? 'tablet' : 'desktop', ...visitor })
+  } catch { /* analytics is best effort and never blocks the page */ }
 }
 router.afterEach((to) => { document.title = to.meta?.title ? `${to.meta.title} · Raldin Casidar` : 'Raldin Casidar - Fullstack Developer & Systems Builder'; trackPageView(to) })
 export default router

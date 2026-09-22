@@ -292,3 +292,36 @@ The database event shape should not be returned directly to the dashboard. Aggre
   devices: [{ category: String, visits: Number }]
 }
 ```
+
+## Visitor IP and geolocation fields
+
+`analyticsEvents` now contains:
+
+```js
+{
+  ipAddress: String,              // select:false; short retention, admin-only
+  ipHash: String,                 // salted SHA-256, used for unique visitor grouping
+  geo: {
+    continent: String,
+    continentCode: String,
+    country: String,
+    countryCode: String,
+    region: String,
+    regionName: String,
+    city: String,
+    district: String,
+    zip: String,
+    lat: Number,
+    lon: Number,
+    timezone: String,
+    isp: String,
+    org: String,
+    as: String,
+    proxy: Boolean,
+    hosting: Boolean,
+    mobile: Boolean
+  }
+}
+```
+
+The geolocation provider is called by the browser only. The API validates and stores the returned values but does not make a provider request. `ipAddress` is never returned by public APIs and dashboard output masks it before display. Use `ANALYTICS_HASH_SALT` as a server-only rotating salt.
