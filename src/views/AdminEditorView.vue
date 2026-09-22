@@ -32,9 +32,43 @@ const draft = reactive({
 })
 
 const dirty = computed(() => JSON.stringify(draft) !== savedSnapshot.value)
+const localDraftKey = computed(() => `portfolio-admin-draft:${type.value}`)
+const localDraftSavedAt = ref('')
+let localDraftTimer
 const mediaVideoUrl = computed({ get: () => isWorks.value ? draft.previewVideoUrl : draft.videoUrl, set: (value) => { if (isWorks.value) draft.previewVideoUrl = value; else draft.videoUrl = value } })
 const mediaImageUrl = computed({ get: () => isWorks.value ? draft.previewImageUrl : draft.imageUrl, set: (value) => { if (isWorks.value) draft.previewImageUrl = value; else draft.imageUrl = value } })
 function resetSnapshot() { savedSnapshot.value = JSON.stringify(draft) }
+function restoreLocalDraft() {
+  try {
+    const raw = localStorage.getItem(localDraftKey.value)
+    if (!raw) return
+    const stored = JSON.parse(raw)
+    Object.assign(draft, stored)
+    draft.caseStudy = { ...emptyCaseStudy(), ...(stored.caseStudy || {}) }
+    draft.caseStudy.hero = { ...emptyCaseStudy().hero, ...(stored.caseStudy?.hero || {}) }
+    draft.caseStudy.contribution = { ...emptyCaseStudy().contribution, ...(stored.caseStudy?.contribution || {}) }
+    draft.caseStudy.visualIdentity = { ...emptyCaseStudy().visualIdentity, ...(stored.caseStudy?.visualIdentity || {}) }
+    draft.caseStudy.solutionsOverview = { ...emptyCaseStudy().solutionsOverview, ...(stored.caseStudy?.solutionsOverview || {}) }
+    localDraftSavedAt.value = stored._localDraftSavedAt || ''
+  } catch {
+    localStorage.removeItem(localDraftKey.value)
+  }
+}
+function persistLocalDraft() {
+  if (!isNew.value || typeof localStorage === 'undefined') return
+  clearTimeout(localDraftTimer)
+  localDraftTimer = setTimeout(() => {
+    const snapshot = JSON.parse(JSON.stringify(draft))
+    const savedAt = new Date().toISOString()
+    snapshot._localDraftSavedAt = savedAt
+    localStorage.setItem(localDraftKey.value, JSON.stringify(snapshot))
+    localDraftSavedAt.value = savedAt
+  }, 350)
+}
+function clearLocalDraft() {
+  if (typeof localStorage !== 'undefined') localStorage.removeItem(localDraftKey.value)
+  localDraftSavedAt.value = ''
+}
 function fieldClass(name) { return fieldErrors.value[name] ? 'admin-input-error' : '' }
 function cleanUrl(value) {
   const match = String(value || '').match(/^\[.*?\]\((https?:\/\/[^)]+)\)$/)
@@ -72,7 +106,7 @@ function normalize() {
   data.previewVideoUrl = cleanUrl(data.previewVideoUrl); data.previewImageUrl = cleanUrl(data.previewImageUrl); data.videoUrl = cleanUrl(data.videoUrl); data.imageUrl = cleanUrl(data.imageUrl)
   if (data.caseStudy?.hero) { data.caseStudy.hero.videoUrl = cleanUrl(data.caseStudy.hero.videoUrl); data.caseStudy.hero.imageUrl = cleanUrl(data.caseStudy.hero.imageUrl) }
   if (data.caseStudy?.solutionsOverview?.slides) data.caseStudy.solutionsOverview.slides.forEach((slide) => { slide.videoUrl = cleanUrl(slide.videoUrl); slide.imageUrl = cleanUrl(slide.imageUrl) })
-  delete data._tagInput; delete data._scopeInput
+  delete data._tagInput; delete data._scopeInput; delete data._localDraftSavedAt
   if (isWorks.value) {
     delete data.videoUrl; delete data.imageUrl; delete data.category; delete data.categories
     data.caseStudy.hero = data.caseStudy.hero || { type: data.device, videoUrl: '', imageUrl: '' }
@@ -83,7 +117,7 @@ function normalize() {
 }
 
 async function load() {
-  if (isNew.value) { resetSnapshot(); loading.value = false; return }
+  if (isNew.value) { restoreLocalDraft(); loading.value = false; return }
   loading.value = true
   try {
     const item = (await adminApi.get(type.value, route.params.id)).data
@@ -105,6 +139,7 @@ async function save(statusOverride) {
     const response = isNew.value ? await adminApi.create(type.value, body) : await adminApi.update(type.value, route.params.id, body)
     toast?.success(statusOverride === 'published' ? 'Published successfully' : 'Saved successfully')
     Object.assign(draft, response.data)
+    if (isNew.value) clearLocalDraft()
     resetSnapshot()
     if (isNew.value) router.replace(`/admin/${type.value}/${response.data.id}/edit`)
   } catch (e) { fieldErrors.value = { ...(e.fieldErrors || {}) }; error.value = e.message; toast?.error(e.message) } finally { saving.value = false }
@@ -112,6 +147,7 @@ async function save(statusOverride) {
 
 function back() { if (dirty.value && !confirm('You have unsaved changes. Leave without saving?')) return; router.push(`/admin/${type.value}`) }
 watch(() => route.params.id, load, { immediate: true })
+watch(draft, persistLocalDraft, { deep: true })
 </script>
 
 <template>
@@ -120,7 +156,7 @@ watch(() => route.params.id, load, { immediate: true })
       <div>
         <button class="mb-3 text-sm text-gray-500 hover:text-[#17A6E3]" @click="back">← Back to {{ isWorks ? 'case studies' : 'Apps Lab' }}</button>
         <h1 class="admin-title">{{ isNew ? 'New' : 'Edit' }} {{ isWorks ? 'case study' : 'App Lab' }}</h1>
-        <p class="mt-2 text-gray-500">Every field below is connected to the live preview and API payload.</p>
+        <p class="mt-2 text-gray-500">Every field below is connected to the live preview and API payload.</p><p v-if="isNew && localDraftSavedAt" class="mt-2 text-xs text-emerald-600">Draft saved on this device · {{ new Date(localDraftSavedAt).toLocaleTimeString() }} <button class="ml-2 underline" @click="clearLocalDraft">Clear local draft</button></p>
       </div>
       <div class="flex flex-wrap gap-2">
         <span class="rounded-full border px-3 py-2 text-xs" :class="dirty ? 'border-amber-300 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'">{{ dirty ? 'Unsaved changes' : 'Saved' }}</span>
