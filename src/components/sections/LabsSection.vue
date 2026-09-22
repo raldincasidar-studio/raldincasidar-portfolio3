@@ -34,7 +34,7 @@ defineProps({
       >
         <LabCard
           v-for="lab in labs"
-          :key="lab.title + lab.category"
+          :key="lab.id || lab.slug || lab.title + lab.category"
           v-bind="lab"
         />
       </div>

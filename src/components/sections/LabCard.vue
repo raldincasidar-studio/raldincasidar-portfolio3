@@ -6,13 +6,20 @@ import ArrowIcon from '@/components/ui/ArrowIcon.vue'
  * Reusable: pass `title`, `description`, `category`, `videoSrc` and an
  * optional `className` (e.g. to control column spans in the grid).
  */
-defineProps({
+const props = defineProps({
   title: { type: String, required: true },
   description: { type: String, required: true },
   category: { type: String, required: true },
-  videoSrc: { type: String, required: true },
+  videoSrc: { type: String, default: '' },
+  imageSrc: { type: String, default: '' },
   className: { type: String, default: '' },
+  externalUrl: { type: String, default: '' },
 })
+
+function openDemo() {
+  if (!props.externalUrl) return
+  window.open(props.externalUrl, '_blank', 'noopener,noreferrer')
+}
 </script>
 
 <template>
@@ -20,6 +27,11 @@ defineProps({
     v-reveal
     class="group flex items-center justify-center flex-col relative text-center cursor-pointer"
     :class="className"
+    :role="externalUrl ? 'link' : undefined"
+    :tabindex="externalUrl ? 0 : undefined"
+    @click="openDemo"
+    @keydown.enter="openDemo"
+    @keydown.space.prevent="openDemo"
   >
     <div
       class="relative overflow-hidden group-hover:-translate-y-3 mx-auto transition-transform duration-500 rounded-3xl lg:rounded-[1.4vw] h-auto w-1/2 sm:w-2/3 outline outline-white/20 aspect-[9/19] bg-gray-800 border-4 sm:border-[0.4vw] border-gray-800 shadow-lg group-hover:shadow-xl"
@@ -35,9 +47,11 @@ defineProps({
         loop
         playsinline
         class="absolute top-0 left-0 w-full h-full object-cover"
+        :poster="imageSrc || undefined"
       >
-        <source :src="videoSrc" type="video/mp4" />
+        <source v-if="videoSrc" :src="videoSrc" type="video/mp4" />
       </video>
+      <img v-if="!videoSrc && imageSrc" :src="imageSrc" :alt="`${title} preview`" class="absolute inset-0 size-full object-cover" />
     </div>
 
     <div class="flex items-center justify-center gap-2">

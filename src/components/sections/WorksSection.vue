@@ -31,7 +31,7 @@ defineProps({
         v-show="!isLoading"
         class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10 mt-6 sm:mt-10"
       >
-        <WorkCard v-for="work in works" :key="work.title" @click="router.push('/case-study/' + work.id)" v-bind="work" />
+        <WorkCard v-for="work in works" :key="work.id || work.slug" @click="router.push('/case-study/' + (work.slug || work.id))" v-bind="work" />
       </div>
     </div>
   </div>
