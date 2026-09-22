@@ -58,9 +58,10 @@ app.get('/api/admin/analytics', requireAuth, loadAdmin, asyncRoute(async (req, r
 app.use((_req, res) => res.status(404).json({ error: { code: 'NOT_FOUND', message: 'API route not found' } }))
 app.use((err, _req, res, _next) => {
   const isValidation = err.name === 'ValidationError'
-  const status = err.status || (isValidation ? 422 : err.code === 11000 ? 409 : 500)
+  const isDatabaseError = /MONGODB_URI|buffering timed out|MongoNetwork|MongoServerSelection/i.test(err.message || '')
+  const status = err.status || (isValidation ? 422 : err.code === 11000 ? 409 : isDatabaseError ? 503 : 500)
   console.error(err.message)
-  let message = status === 500 ? 'Something went wrong on the server.' : err.message
+  let message = status === 503 ? 'The database is temporarily unavailable. Please try again in a moment.' : status === 500 ? 'Something went wrong on the server.' : err.message
   let details = err.details
   if (isValidation) {
     const fieldErrors = Object.fromEntries(Object.entries(err.errors || {}).map(([field, issue]) => [field, issue.message]))
