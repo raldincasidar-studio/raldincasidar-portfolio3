@@ -279,3 +279,23 @@ body.menu-open {
 #preloader-percent {
   font-variant-numeric: tabular-nums;
 }
+
+/* Admin workspace primitives */
+.admin-eyebrow { font-family: "Geist", sans-serif; font-size: .68rem; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: #17A6E3; }
+.admin-title { font-family: "Bricolage Grotesque", sans-serif; font-size: clamp(2.25rem, 5vw, 4rem); line-height: .98; font-weight: 700; letter-spacing: -.04em; }
+.admin-section-title { margin-top: .35rem; font-family: "Bricolage Grotesque", sans-serif; font-size: 1.6rem; line-height: 1.1; font-weight: 600; }
+.admin-label, .admin-label-dark { display: block; font-size: .875rem; font-weight: 600; color: #344054; }
+.admin-label-dark { color: rgba(255,255,255,.78); }
+.admin-input, .admin-input-dark { display: block; width: 100%; border-radius: .8rem; border: 1px solid #D0D5DD; background: white; padding: .75rem .875rem; color: #07090D; outline: none; transition: border-color .2s, box-shadow .2s; }
+.admin-input:focus, .admin-input-dark:focus { border-color: #17A6E3; box-shadow: 0 0 0 3px rgba(23,166,227,.15); }
+.admin-input-dark { border-color: rgba(255,255,255,.15); background: rgba(255,255,255,.06); color: white; }
+.admin-input-dark::placeholder { color: rgba(255,255,255,.35); }
+.admin-button-primary, .admin-button-secondary, .admin-button-dark { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; border-radius: 999px; padding: .72rem 1.1rem; font-size: .875rem; font-weight: 700; transition: transform .2s, background .2s, border-color .2s; }
+.admin-button-primary { background: #17A6E3; color: white; box-shadow: 0 8px 18px rgba(23,166,227,.18); }
+.admin-button-primary:hover:not(:disabled) { background: #128fc5; transform: translateY(-1px); }
+.admin-button-secondary { border: 1px solid #D0D5DD; background: white; color: #344054; }
+.admin-button-secondary:hover:not(:disabled) { border-color: #17A6E3; color: #0f83b5; }
+.admin-button-dark { background: #0E1722; color: white; }
+.admin-button-dark:hover:not(:disabled) { background: #132132; }
+.admin-button-primary:disabled, .admin-button-secondary:disabled, .admin-button-dark:disabled { cursor: not-allowed; opacity: .5; }
+.admin-empty { display: grid; min-height: 280px; place-items: center; align-content: center; border: 1px dashed #CBD5E1; border-radius: 1.5rem; background: white; text-align: center; padding: 2rem; }
