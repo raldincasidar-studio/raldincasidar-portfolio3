@@ -23,8 +23,9 @@ function clearTimers() {
 }
 
 onMounted(() => {
-  dataReady = window.location.pathname !== '/'
-  if (!dataReady) {
+  const requiresData = window.location.pathname === '/' || window.location.pathname.startsWith('/case-study/')
+  dataReady = !requiresData
+  if (requiresData) {
     dataReadyHandler = () => {
       dataReady = true
     }

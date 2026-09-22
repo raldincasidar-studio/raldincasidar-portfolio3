@@ -11,7 +11,8 @@ defineProps({
   description: { type: String, required: true },
   tags: { type: String, required: true },
   year: { type: String, required: true },
-  videoSrc: { type: String, required: true },
+  videoSrc: { type: String, default: '' },
+  imageSrc: { type: String, default: '' },
   device: { type: String, default: 'phone' }, // 'phone' | 'browser'
   href: { type: String, default: '#!' },
 })
@@ -46,9 +47,11 @@ defineProps({
           loop
           playsinline
           class="absolute top-0 left-0 w-full h-full object-cover"
+          :poster="imageSrc || undefined"
         >
-          <source :src="videoSrc" type="video/mp4" />
+          <source v-if="videoSrc" :src="videoSrc" type="video/mp4" />
         </video>
+        <img v-if="!videoSrc && imageSrc" :src="imageSrc" :alt="`${title} preview`" class="absolute inset-0 size-full object-cover" />
       </div>
 
       <!-- Browser mockup -->
@@ -62,9 +65,11 @@ defineProps({
           loop
           playsinline
           class="absolute top-0 left-0 w-full h-full object-cover"
+          :poster="imageSrc || undefined"
         >
-          <source :src="videoSrc" type="video/mp4" />
+          <source v-if="videoSrc" :src="videoSrc" type="video/mp4" />
         </video>
+        <img v-if="!videoSrc && imageSrc" :src="imageSrc" :alt="`${title} preview`" class="absolute inset-0 size-full object-cover" />
       </div>
     </div>
 

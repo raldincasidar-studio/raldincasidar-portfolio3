@@ -6,7 +6,11 @@
  */
 
 import { computed, onBeforeUnmount, onMounted, ref, nextTick } from "vue";
+import { useRoute } from "vue-router";
+import { getWork } from "@/api/publicContent.js";
+import { normalizePublicError } from "@/utils/publicErrors.js";
 
+const route = useRoute();
 const device = ref("phone");
 const hero_device = ref("browser");
 const activeSlide = ref(0);
@@ -99,105 +103,27 @@ function getWordColorProgress(index) {
   );
 }
 
-/* ──────────────────────────────────────────────
- *  MOCK "FETCH" — simulates an API/server response
- * ────────────────────────────────────────────── */
+/* API-backed case-study data. The presentation model remains compatible with
+ * the existing template so the visual layout is unchanged. */
+const requestError = ref(null);
+
 async function fetchPageData() {
   isLoading.value = true;
-
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-
-  pageData.value = {
-    client_name: "ANGEL’S PIZZA",
-    year: "2024-2026",
-    type: "MOBILE APP",
-    case_title:
-      "Turning a confusing checkout into Angel's Pizza's fastest-growing sales channel.",
-    case_description:
-      "Angel's Pizza didn't need another redesign, they needed the redesign they already had to actually work. Customers were getting lost mid-order, checkout took too many taps, and sales were flatlining because of it. I took the Figma files and turned them into a real, production-grade app.",
-
-    hero_video: {
-      type: 'browser',
-      src: "/assets/video/pasado-app.mp4",
-    },
-
-    the_story:
-      "I took the provided Figma design and turned it into a fully working production app — connecting the interface to real-world features like GPS, maps, notifications, authentication, backend services, and databases. The result was a faster, clearer ordering experience that helped double app sales after launch.",
-
-    contribution: {
-      role: "Full-stack App Developer",
-      client: "Angel’s Pizza",
-      year: "2024-2026",
-      discipline: "Mobile App Development, UX Engineering",
-      scope: ["Frontend", "Backend", "UX", "Database"],
-    },
-
-    numbers: [
-      { label: "APP SALES", value: "+100%" },
-      { label: "SALES AFTER LAUNCH", value: "2x" },
-      { label: "CORE INTEGRATION", value: "6+" },
-    ],
-
-    visual_identity: {
-      colors_title: "Built to whet the appetite Body",
-      colors_list: [
-        { name: "Lemon Orange", hex: "#FAD81E" },
-        { name: "Stop Orange", hex: "#FF5E42" },
-        { name: "Vanilla", hex: "#FFFFFF" },
-        { name: "Sky Blue", hex: "#06B7F8" },
-      ],
-      fonts_title: "Typeset for a fast, easy read Body",
-      fonts_list: [
-        { label: "PRIMARY", name: "POPPINS FONT" },
-        { label: "SECONDARY", name: "POPPINS FONT" },
-      ],
-    },
-
-    solutions_overview: {
-      description:
-        "The Figma design solved the visual problem. Making it feel fast, natural, and premium in someone's hand was a separate job. Here's what that looked like in practice.",
-      slides: [
-        {
-          video_url: "/assets/video/bangsamoro-app.mp4",
-          video_type: "phone",
-          description:
-            "Smooth, premium transitions between every screen — no jarring cuts, no dead space.",
-        },
-        {
-          video_url: "/assets/video/ramadhan-app.mp4",
-          video_type: "phone",
-          description:
-            "Ramadhan is the best of all time in the world since the world peace.",
-        },
-        {
-          video_url: "/assets/video/ella-web.mp4",
-          video_type: "web",
-          description:
-            "Ella's Portfolio is the world's leading portfolio in terms of design and interactability.",
-        },
-        {
-          video_url: "/assets/video/bangsamoro-app.mp4",
-          video_type: "phone",
-          description:
-            "Smooth, premium transitions between every screen — no jarring cuts, no dead space.",
-        },
-        {
-          video_url: "/assets/video/bangsamoro-app.mp4",
-          video_type: "phone",
-          description:
-            "Smooth, premium transitions between every screen — no jarring cuts, no dead space.",
-        },
-      ],
-    },
-  };
-
-  isLoading.value = false;
-
-  // Wait for the real slide elements to render, then init the slider
-  await nextTick();
-  updateActiveSlide();
-  updateStoryColor();
+  requestError.value = null;
+  try {
+    pageData.value = await getWork(route.params.id);
+    device.value = pageData.value.hero_video.type || device.value;
+    await nextTick();
+    updateActiveSlide();
+    updateStoryColor();
+  } catch (error) {
+    requestError.value = normalizePublicError(error);
+    pageData.value = null;
+  } finally {
+    isLoading.value = false;
+    await nextTick();
+    window.dispatchEvent(new Event("preloader:data-ready"));
+  }
 }
 
 onMounted(() => {
@@ -218,6 +144,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <div v-if="requestError" class="min-h-[70vh] bg-[linear-gradient(to_bottom,#17A6E3,#1794C9)] px-5 py-40 text-center text-white">
+    <h1 class="font-bricolage text-4xl font-bold">{{ requestError.title }}</h1>
+    <p class="mx-auto mt-4 max-w-lg text-white/80">{{ requestError.message }}</p>
+    <button class="mt-8 rounded-full bg-white px-6 py-3 text-gray-950" @click="fetchPageData">Try again</button>
+  </div>
+  <template v-else>
   <!-- HERO -->
   <section
     class="py-20 px-5 pb-12 sm:py-32 sm:px-8 sm:pb-16 lg:py-48 lg:px-10 lg:pb-20 bg-[linear-gradient(to_bottom,#17A6E3,#1794C9)]"
@@ -738,6 +670,7 @@ onBeforeUnmount(() => {
       </button>
     </div>
   </section>
+  </template>
 </template>
 
 <style scoped>

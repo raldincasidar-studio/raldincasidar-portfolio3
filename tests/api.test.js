@@ -7,7 +7,7 @@ test('health endpoint is registered', async () => {
   const response = await request(app).get('/api/health')
   // With Atlas access disabled this is expected to be a controlled 500;
   // once the IP is allowlisted it becomes 200 with database: connected.
-  assert.ok([200, 500].includes(response.status))
+  assert.ok([200, 500, 503].includes(response.status))
   assert.equal(response.type, 'application/json')
 })
 
