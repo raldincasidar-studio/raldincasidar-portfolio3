@@ -119,7 +119,7 @@ async function fetchPageData() {
 
     hero_video: {
       type: 'browser',
-      src: "/assets/video/pasado-app.mkv",
+      src: "/assets/video/pasado-app.mp4",
     },
 
     the_story:
@@ -171,7 +171,7 @@ async function fetchPageData() {
             "Ramadhan is the best of all time in the world since the world peace.",
         },
         {
-          video_url: "/assets/video/ella-web.mkv",
+          video_url: "/assets/video/ella-web.mp4",
           video_type: "web",
           description:
             "Ella's Portfolio is the world's leading portfolio in terms of design and interactability.",

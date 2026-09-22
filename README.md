@@ -48,8 +48,8 @@ raldin-portfolio/
 │           ├── head-image-loop.mp4
 │           ├── bangsamoro-app.mp4
 │           ├── ramadhan-app.mp4
-│           ├── ella-web.mkv
-│           └── pasado-app.mkv
+│           ├── ella-web.mp4
+│           └── pasado-app.mp4
 └── src/
     ├── main.js                 # App entry — mounts Vue + router
     ├── App.vue                 # Root (renders <router-view />)
@@ -149,7 +149,7 @@ The **preloader, navbar and footer are applied automatically** via
 ## What changed vs. the static version
 
 - Markup split into components; repeated SVGs replaced by `ArrowIcon.vue`.
-- `<video>` sources now use `mp4` (the original referenced `.mkv` files,
+- `<video>` sources now use `mp4` (the original referenced `.mp4` files,
   which most browsers won't play). Placeholder videos are included —
   **drop your real recordings into `public/assets/video/`**.
 - Placeholder logo + favicon included — replace `logo-white.svg` / `favicon.png`
