@@ -1,5 +1,5 @@
 <script setup>
-import { computed, inject, reactive, ref, watch } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { adminApi } from '@/api/admin.js'
 
@@ -32,6 +32,10 @@ const draft = reactive({
 })
 
 const dirty = computed(() => JSON.stringify(draft) !== savedSnapshot.value)
+const completion = computed(() => {
+  const checks = [draft.slug, draft.title.trim(), draft.description.trim(), isWorks.value ? draft.previewVideoUrl || draft.previewImageUrl : draft.videoUrl || draft.imageUrl]
+  return Math.round((checks.filter(Boolean).length / checks.length) * 100)
+})
 const localDraftKey = computed(() => `portfolio-admin-draft:${type.value}`)
 const localDraftSavedAt = ref('')
 let localDraftTimer
@@ -154,6 +158,12 @@ async function save(statusOverride) {
 }
 
 function back() { if (dirty.value && !confirm('You have unsaved changes. Leave without saving?')) return; router.push(`/admin/${type.value}`) }
+function onShortcut(event) {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') { event.preventDefault(); save() }
+  if (event.key === 'Escape' && !saving.value) back()
+}
+onMounted(() => window.addEventListener('keydown', onShortcut))
+onBeforeUnmount(() => { window.removeEventListener('keydown', onShortcut); clearTimeout(localDraftTimer) })
 watch(() => [props.type, route.params.id], load, { immediate: true })
 watch(draft, persistLocalDraft, { deep: true })
 </script>
@@ -164,7 +174,7 @@ watch(draft, persistLocalDraft, { deep: true })
       <div>
         <button class="mb-3 text-sm text-gray-500 hover:text-[#17A6E3]" @click="back">← Back to {{ isWorks ? 'case studies' : 'Apps Lab' }}</button>
         <h1 class="admin-title">{{ isNew ? 'New' : 'Edit' }} {{ isWorks ? 'case study' : 'App Lab' }}</h1>
-        <p class="mt-2 text-gray-500">Every field below is connected to the live preview and API payload.</p><p v-if="isNew && localDraftSavedAt" class="mt-2 text-xs text-emerald-600">Draft saved on this device · {{ new Date(localDraftSavedAt).toLocaleTimeString() }} <button class="ml-2 underline" @click="clearLocalDraft">Clear local draft</button></p>
+        <p class="mt-2 text-gray-500">Every field below is connected to the live preview and API payload.</p><p class="mt-2 hidden text-xs text-gray-400 sm:block"><kbd>⌘/Ctrl</kbd> + <kbd>S</kbd> save · <kbd>Esc</kbd> back</p><p v-if="isNew && localDraftSavedAt" class="mt-2 text-xs text-emerald-600">Draft saved on this device · {{ new Date(localDraftSavedAt).toLocaleTimeString() }} <button class="ml-2 underline" @click="clearLocalDraft">Clear local draft</button></p>
       </div>
       <div class="flex flex-wrap gap-2">
         <span class="rounded-full border px-3 py-2 text-xs" :class="dirty ? 'border-amber-300 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'">{{ dirty ? 'Unsaved changes' : 'Saved' }}</span>
@@ -219,8 +229,9 @@ watch(draft, persistLocalDraft, { deep: true })
       </div>
 
       <!-- Floating metadata inspector -->
-      <aside class="h-fit space-y-5 rounded-3xl bg-[#0E1722] p-5 text-white shadow-xl xl:sticky xl:top-24"><div class="flex items-center justify-between"><h2 class="font-bricolage text-xl font-semibold">Details</h2><span class="text-xs text-white/40">Inspector</span></div><label class="admin-label-dark">Slug<input v-model="draft.slug" :class="fieldClass('slug')" class="admin-input-dark mt-2" placeholder="project-slug" /></label><label class="admin-label-dark">Status<select v-model="draft.status" class="admin-input-dark mt-2"><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label><label class="admin-label-dark">Device<select v-model="draft.device" class="admin-input-dark mt-2"><option value="phone">Phone mockup</option><option value="browser">Browser mockup</option></select></label><label v-if="isWorks" class="admin-label-dark">Year<input v-model="draft.year" class="admin-input-dark mt-2" /></label><label v-if="isWorks" class="admin-label-dark">Client<input v-model="draft.caseStudy.contribution.client" class="admin-input-dark mt-2" /></label><label class="admin-label-dark">Sort order<input v-model.number="draft.sortOrder" type="number" min="0" class="admin-input-dark mt-2" /></label><div class="border-t border-white/10 pt-5"><template v-if="isWorks"><p class="admin-eyebrow !text-white/40">Card tags</p><div class="mt-3 flex gap-2"><input v-model="draft._tagInput" class="admin-input-dark" placeholder="Add tag" @keyup.enter="addTag" /><button class="rounded-xl bg-white/10 px-3 text-sm" @click="addTag">+</button></div><div class="mt-3 flex flex-wrap gap-2"><span v-for="(tag, index) in draft.tags" :key="tag" class="rounded-full bg-white/10 px-2 py-1 text-xs">{{ tag }} <button @click="removeTag(index)">×</button></span></div></template><label v-else class="admin-label-dark">Category<input v-model="draft.category" class="admin-input-dark mt-2" placeholder="Mobile App, Education" /></label></div><div class="border-t border-white/10 pt-5"><p class="admin-eyebrow !text-white/40">{{ isWorks ? 'Card preview media' : 'Preview media' }}</p><label class="admin-label-dark mt-4">Video URL<input v-model="mediaVideoUrl" :class="fieldClass(isWorks ? 'previewVideoUrl' : 'videoUrl')" type="url" class="admin-input-dark mt-2" placeholder="https://cdn…" /></label><label class="admin-label-dark mt-4">Image fallback<input v-model="mediaImageUrl" :class="fieldClass(isWorks ? 'previewImageUrl' : 'imageUrl')" type="url" class="admin-input-dark mt-2" placeholder="https://cdn…" /></label></div><button class="w-full rounded-xl border border-white/15 px-4 py-3 text-sm text-red-300 hover:border-red-300" @click="back">Discard changes</button></aside>
+      <aside class="h-fit space-y-5 rounded-3xl bg-[#0E1722] p-5 text-white shadow-xl xl:sticky xl:top-24"><div class="flex items-center justify-between"><h2 class="font-bricolage text-xl font-semibold">Details</h2><span class="text-xs text-white/40">Inspector</span></div><div class="rounded-2xl bg-white/5 p-3"><div class="flex items-center justify-between text-xs text-white/60"><span>Content readiness</span><strong class="text-[#BBE6F6]">{{ completion }}%</strong></div><div class="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div class="h-full rounded-full bg-[#17A6E3] transition-all" :style="{ width: `${completion}%` }"></div></div></div><label class="admin-label-dark">Slug<input v-model="draft.slug" :class="fieldClass('slug')" class="admin-input-dark mt-2" placeholder="project-slug" /></label><label class="admin-label-dark">Status<select v-model="draft.status" class="admin-input-dark mt-2"><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label><label class="admin-label-dark">Device<select v-model="draft.device" class="admin-input-dark mt-2"><option value="phone">Phone mockup</option><option value="browser">Browser mockup</option></select></label><label v-if="isWorks" class="admin-label-dark">Year<input v-model="draft.year" class="admin-input-dark mt-2" /></label><label v-if="isWorks" class="admin-label-dark">Client<input v-model="draft.caseStudy.contribution.client" class="admin-input-dark mt-2" /></label><label class="admin-label-dark">Sort order<input v-model.number="draft.sortOrder" type="number" min="0" class="admin-input-dark mt-2" /></label><div class="border-t border-white/10 pt-5"><template v-if="isWorks"><p class="admin-eyebrow !text-white/40">Card tags</p><div class="mt-3 flex gap-2"><input v-model="draft._tagInput" class="admin-input-dark" placeholder="Add tag" @keyup.enter="addTag" /><button class="rounded-xl bg-white/10 px-3 text-sm" @click="addTag">+</button></div><div class="mt-3 flex flex-wrap gap-2"><span v-for="(tag, index) in draft.tags" :key="tag" class="rounded-full bg-white/10 px-2 py-1 text-xs">{{ tag }} <button @click="removeTag(index)">×</button></span></div></template><label v-else class="admin-label-dark">Category<input v-model="draft.category" class="admin-input-dark mt-2" placeholder="Mobile App, Education" /></label></div><div class="border-t border-white/10 pt-5"><p class="admin-eyebrow !text-white/40">{{ isWorks ? 'Card preview media' : 'Preview media' }}</p><label class="admin-label-dark mt-4">Video URL<input v-model="mediaVideoUrl" :class="fieldClass(isWorks ? 'previewVideoUrl' : 'videoUrl')" type="url" class="admin-input-dark mt-2" placeholder="https://cdn…" /></label><label class="admin-label-dark mt-4">Image fallback<input v-model="mediaImageUrl" :class="fieldClass(isWorks ? 'previewImageUrl' : 'imageUrl')" type="url" class="admin-input-dark mt-2" placeholder="https://cdn…" /></label></div><button class="w-full rounded-xl border border-white/15 px-4 py-3 text-sm text-red-300 hover:border-red-300" @click="back">Discard changes</button></aside>
     </div>
+    <div class="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-gray-200 bg-white/95 p-3 shadow-2xl backdrop-blur-md sm:hidden"><button class="admin-button-secondary flex-1" @click="back">Cancel</button><button class="admin-button-primary flex-1" :disabled="saving" @click="save()">{{ saving ? 'Saving…' : 'Save draft' }}</button><button class="admin-button-dark px-4" :disabled="saving" @click="save('published')">Publish</button></div>
   </section>
 </template>
 
