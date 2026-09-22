@@ -888,3 +888,19 @@ The authenticated analytics response additionally contains:
 ```
 
 The admin UI masks `ipAddress` before display.
+
+## 15. Backend-owned IP collection update
+
+The browser must not call the geolocation provider. For `POST /api/analytics/events`, send only event context:
+
+```json
+{
+  "eventType": "page_view",
+  "path": "/",
+  "resourceType": "page",
+  "anonymousSessionId": "session-id",
+  "deviceCategory": "desktop"
+}
+```
+
+The API derives the client IP from the request headers/socket and calls the local `fast-geoip` Node.js library. The frontend does not send `ipAddress` or `geo`; any client-supplied values are ignored/overwritten. Geo lookup failure does not block analytics event storage.

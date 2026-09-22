@@ -213,3 +213,7 @@ The browser will call the client-only `ip-api.com` JSON endpoint once per visito
 - Document consent/privacy/retention requirements before production activation.
 
 The dashboard analytics response now includes country totals, visitor groups, and ISP totals alongside traffic, referrals, devices, and top content.
+
+## Backend-owned IP geolocation
+
+The analytics ingestion endpoint now determines the visitor IP from the request (`x-forwarded-for`, `x-real-ip`, or the socket address) and performs geolocation lookup with the `fast-geoip` npm package. The frontend no longer calls a third-party geo provider or submits an IP/geo payload. This keeps provider access and IP derivation in the server API.

@@ -325,3 +325,7 @@ The database event shape should not be returned directly to the dashboard. Aggre
 ```
 
 The geolocation provider is called by the browser only. The API validates and stores the returned values but does not make a provider request. `ipAddress` is never returned by public APIs and dashboard output masks it before display. Use `ANALYTICS_HASH_SALT` as a server-only rotating salt.
+
+## Geolocation provider ownership update
+
+IP and geo data are now derived in the backend using `fast-geoip` during analytics event ingestion. The browser sends only the page/event context and anonymous session ID. `ipAddress` is retained for the configured analytics retention period, while `ipHash` is used for grouped visitor counts. Geo lookup failures are non-fatal and the event remains recordable without a geo object.

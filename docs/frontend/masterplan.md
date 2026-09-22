@@ -165,3 +165,7 @@ The dashboard should present:
 - 7/30/90-day filters.
 
 Raw IP addresses must not be shown in the UI by default. The dashboard should communicate that visitor location is approximate and based on an external IP geolocation service.
+
+## Geolocation ownership update
+
+Remove browser-side calls to third-party IP services. The frontend sends only analytics context; the backend derives the request IP and resolves geo data with `fast-geoip`. Public tracking remains fire-and-forget.

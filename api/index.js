@@ -11,6 +11,7 @@ import { Admin, AnalyticsEvent, AuditEvent, Lab, SiteSettings, Work } from './mo
 import { cookieName, cookieOptions, loadAdmin, requireAuth, signAdmin } from './auth.js'
 import { analyticsEventSchema, idParam, labSchema, loginSchema, parse, passwordSchema, settingsSchema, workSchema } from './validate.js'
 import { recordAudit, safeOrigin } from './audit.js'
+import { getClientIp, lookupClientGeo } from './clientGeo.js'
 
 const app = express()
 app.set('trust proxy', 1)
@@ -42,7 +43,7 @@ app.patch('/api/admin/settings/site', requireAuth, loadAdmin, asyncRoute(async (
 
 app.get('/api/admin/logs', requireAuth, loadAdmin, asyncRoute(async (req, res) => { await connectDatabase(); const page = Math.max(Number(req.query.page) || 1, 1); const limit = Math.min(Math.max(Number(req.query.limit) || 25, 1), 100); const filter = {}; if (req.query.action) filter.action = req.query.action; if (req.query.resourceType) filter.resourceType = req.query.resourceType; if (req.query.from || req.query.to) { filter.createdAt = {}; if (req.query.from) filter.createdAt.$gte = new Date(req.query.from); if (req.query.to) filter.createdAt.$lte = new Date(req.query.to) } const [rows, total] = await Promise.all([AuditEvent.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).populate('actorId', 'email').lean(), AuditEvent.countDocuments(filter)]); res.json({ data: rows.map((row) => ({ id: row._id, action: row.action, resourceType: row.resourceType, resourceId: row.resourceId, resourceSlug: row.resourceSlug, resourceTitle: row.resourceTitle, summary: row.summary, actor: row.actorId ? { email: row.actorId.email } : null, createdAt: row.createdAt })), pagination: { page, limit, total, pages: Math.ceil(total / limit) } }) }))
 
-app.post('/api/analytics/events', analyticsLimiter, asyncRoute(async (req, res) => { await connectDatabase(); const data = parse(analyticsEventSchema, req.body); await AnalyticsEvent.create({ ...data, ipHash: crypto.createHash('sha256').update(`${data.ipAddress}:${process.env.ANALYTICS_HASH_SALT || 'rotate-this-salt'}`).digest('hex'), referrerOrigin: data.referrerOrigin ? safeOrigin(data.referrerOrigin) : undefined, occurredAt: new Date(), expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) }); res.status(202).json({ data: { accepted: true } }) }))
+app.post('/api/analytics/events', analyticsLimiter, asyncRoute(async (req, res) => { await connectDatabase(); const data = parse(analyticsEventSchema, req.body); const ipAddress = getClientIp(req); const geo = await lookupClientGeo(ipAddress); await AnalyticsEvent.create({ ...data, ipAddress, geo, ipHash: crypto.createHash('sha256').update(`${ipAddress}:${process.env.ANALYTICS_HASH_SALT || 'rotate-this-salt'}`).digest('hex'), referrerOrigin: data.referrerOrigin ? safeOrigin(data.referrerOrigin) : undefined, occurredAt: new Date(), expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) }); res.status(202).json({ data: { accepted: true } }) }))
 
 function adminCrud(path, Model, schema, resourceType) {
   app.get(`/api/admin/${path}`, requireAuth, loadAdmin, asyncRoute(async (req, res) => { await connectDatabase(); const filter = req.query.status ? { status: req.query.status } : {}; const docs = await Model.find(filter).sort({ sortOrder: 1, updatedAt: -1 }).lean(); res.json({ data: docs.map(serialize) }) }))
