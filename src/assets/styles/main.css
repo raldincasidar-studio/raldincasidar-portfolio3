@@ -299,3 +299,4 @@ body.menu-open {
 .admin-button-dark:hover:not(:disabled) { background: #132132; }
 .admin-button-primary:disabled, .admin-button-secondary:disabled, .admin-button-dark:disabled { cursor: not-allowed; opacity: .5; }
 .admin-empty { display: grid; min-height: 280px; place-items: center; align-content: center; border: 1px dashed #CBD5E1; border-radius: 1.5rem; background: white; text-align: center; padding: 2rem; }
+.admin-input-error { border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239,68,68,.12) !important; }

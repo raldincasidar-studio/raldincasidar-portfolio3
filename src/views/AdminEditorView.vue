@@ -13,6 +13,7 @@ const isNew = computed(() => route.name === `admin-${type.value.slice(0, -1)}-ne
 const loading = ref(!isNew.value)
 const saving = ref(false)
 const error = ref('')
+const fieldErrors = ref({})
 const savedSnapshot = ref('')
 
 const emptyCaseStudy = () => ({
@@ -34,6 +35,23 @@ const dirty = computed(() => JSON.stringify(draft) !== savedSnapshot.value)
 const mediaVideoUrl = computed({ get: () => isWorks.value ? draft.previewVideoUrl : draft.videoUrl, set: (value) => { if (isWorks.value) draft.previewVideoUrl = value; else draft.videoUrl = value } })
 const mediaImageUrl = computed({ get: () => isWorks.value ? draft.previewImageUrl : draft.imageUrl, set: (value) => { if (isWorks.value) draft.previewImageUrl = value; else draft.imageUrl = value } })
 function resetSnapshot() { savedSnapshot.value = JSON.stringify(draft) }
+function fieldClass(name) { return fieldErrors.value[name] ? 'admin-input-error' : '' }
+function cleanUrl(value) {
+  const match = String(value || '').match(/^\[.*?\]\((https?:\/\/[^)]+)\)$/)
+  return match ? match[1] : String(value || '').trim()
+}
+function validateDraft() {
+  const errors = {}
+  if (!draft.slug) errors.slug = 'Slug is required.'
+  else if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(draft.slug)) errors.slug = 'Use lowercase letters, numbers, and hyphens only.'
+  if (!draft.title.trim()) errors.title = 'Title is required.'
+  if (!draft.description.trim()) errors.description = 'Description is required.'
+  const mediaUrl = isWorks.value ? draft.previewVideoUrl : draft.videoUrl
+  if (!mediaUrl && !(isWorks.value ? draft.previewImageUrl : draft.imageUrl)) errors.media = 'Add a video URL or image fallback.'
+  for (const [key, value] of [['previewVideoUrl', draft.previewVideoUrl], ['previewImageUrl', draft.previewImageUrl], ['videoUrl', draft.videoUrl], ['imageUrl', draft.imageUrl]]) { if (value && !/^https?:\/\//.test(cleanUrl(value))) errors[key] = 'Enter a valid URL starting with http:// or https://.' }
+  fieldErrors.value = errors
+  return !Object.keys(errors).length
+}
 function listFor(kind) { return isWorks.value ? draft.tags : draft.categories }
 function addTag() { const value = (draft._tagInput || '').trim(); if (value && !listFor().includes(value)) listFor().push(value); draft._tagInput = '' }
 function removeTag(index) { listFor().splice(index, 1) }
@@ -51,6 +69,9 @@ function moveSlide(index, direction) { const next = index + direction; const sli
 
 function normalize() {
   const data = JSON.parse(JSON.stringify(draft))
+  data.previewVideoUrl = cleanUrl(data.previewVideoUrl); data.previewImageUrl = cleanUrl(data.previewImageUrl); data.videoUrl = cleanUrl(data.videoUrl); data.imageUrl = cleanUrl(data.imageUrl)
+  if (data.caseStudy?.hero) { data.caseStudy.hero.videoUrl = cleanUrl(data.caseStudy.hero.videoUrl); data.caseStudy.hero.imageUrl = cleanUrl(data.caseStudy.hero.imageUrl) }
+  if (data.caseStudy?.solutionsOverview?.slides) data.caseStudy.solutionsOverview.slides.forEach((slide) => { slide.videoUrl = cleanUrl(slide.videoUrl); slide.imageUrl = cleanUrl(slide.imageUrl) })
   delete data._tagInput; delete data._scopeInput
   if (isWorks.value) {
     delete data.videoUrl; delete data.imageUrl; delete data.category; delete data.categories
@@ -86,7 +107,7 @@ async function save(statusOverride) {
     Object.assign(draft, response.data)
     resetSnapshot()
     if (isNew.value) router.replace(`/admin/${type.value}/${response.data.id}/edit`)
-  } catch (e) { error.value = e.message; toast?.error(e.message) } finally { saving.value = false }
+  } catch (e) { fieldErrors.value = { ...(e.fieldErrors || {}) }; error.value = e.message; toast?.error(e.message) } finally { saving.value = false }
 }
 
 function back() { if (dirty.value && !confirm('You have unsaved changes. Leave without saving?')) return; router.push(`/admin/${type.value}`) }
@@ -109,7 +130,7 @@ watch(() => route.params.id, load, { immediate: true })
       </div>
     </div>
 
-    <div v-if="error" class="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ error }}</div>
+    <div v-if="error" class="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ error }}</div><div v-if="Object.keys(fieldErrors).length" class="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"><p v-for="(message, field) in fieldErrors" :key="field">{{ message }}</p></div>
     <div v-if="loading" class="h-96 animate-pulse rounded-3xl bg-gray-200" />
     <div v-else class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div class="space-y-6">
@@ -128,7 +149,7 @@ watch(() => route.params.id, load, { immediate: true })
           </div>
           <div class="space-y-6 p-5 sm:p-8">
             <div><label class="admin-label">Card title<input v-model="draft.title" class="admin-input mt-2 text-2xl font-bold" placeholder="Project title" /></label><p class="mt-2 text-xs text-gray-400">{{ draft.title.length }}/200 characters</p></div>
-            <label class="admin-label">Card description<textarea v-model="draft.description" rows="4" class="admin-input mt-2" placeholder="Short project description" /></label>
+            <label class="admin-label">Card description<textarea v-model="draft.description" :class="fieldClass('description')" rows="4" class="admin-input mt-2" placeholder="Short project description" /></label>
             <div v-if="isWorks" class="space-y-5 border-t pt-6">
               <p class="admin-eyebrow">Case study page · hero and story</p>
               <label class="admin-label">Client name<input v-model="draft.caseStudy.clientName" class="admin-input mt-2" /></label>
@@ -155,7 +176,7 @@ watch(() => route.params.id, load, { immediate: true })
       </div>
 
       <!-- Floating metadata inspector -->
-      <aside class="h-fit space-y-5 rounded-3xl bg-[#0E1722] p-5 text-white shadow-xl xl:sticky xl:top-24"><div class="flex items-center justify-between"><h2 class="font-bricolage text-xl font-semibold">Details</h2><span class="text-xs text-white/40">Inspector</span></div><label class="admin-label-dark">Slug<input v-model="draft.slug" class="admin-input-dark mt-2" placeholder="project-slug" /></label><label class="admin-label-dark">Status<select v-model="draft.status" class="admin-input-dark mt-2"><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label><label class="admin-label-dark">Device<select v-model="draft.device" class="admin-input-dark mt-2"><option value="phone">Phone mockup</option><option value="browser">Browser mockup</option></select></label><label v-if="isWorks" class="admin-label-dark">Card year<input v-model="draft.year" class="admin-input-dark mt-2" /></label><label class="admin-label-dark">Sort order<input v-model.number="draft.sortOrder" type="number" min="0" class="admin-input-dark mt-2" /></label><div class="border-t border-white/10 pt-5"><p class="admin-eyebrow !text-white/40">{{ isWorks ? 'Card tags' : 'Lab categories' }}</p><div class="mt-3 flex gap-2"><input v-model="draft._tagInput" class="admin-input-dark" placeholder="Add tag" @keyup.enter="addTag" /><button class="rounded-xl bg-white/10 px-3 text-sm" @click="addTag">+</button></div><div class="mt-3 flex flex-wrap gap-2"><span v-for="(tag, index) in listFor()" :key="tag" class="rounded-full bg-white/10 px-2 py-1 text-xs">{{ tag }} <button @click="removeTag(index)">×</button></span></div></div><div class="border-t border-white/10 pt-5"><p class="admin-eyebrow !text-white/40">{{ isWorks ? 'Card preview media' : 'Preview media' }}</p><label class="admin-label-dark mt-4">Video URL<input v-model="mediaVideoUrl" type="url" class="admin-input-dark mt-2" placeholder="https://cdn…" /></label><label class="admin-label-dark mt-4">Image fallback<input v-model="mediaImageUrl" type="url" class="admin-input-dark mt-2" placeholder="https://cdn…" /></label></div><button class="w-full rounded-xl border border-white/15 px-4 py-3 text-sm text-red-300 hover:border-red-300" @click="back">Discard changes</button></aside>
+      <aside class="h-fit space-y-5 rounded-3xl bg-[#0E1722] p-5 text-white shadow-xl xl:sticky xl:top-24"><div class="flex items-center justify-between"><h2 class="font-bricolage text-xl font-semibold">Details</h2><span class="text-xs text-white/40">Inspector</span></div><label class="admin-label-dark">Slug<input v-model="draft.slug" :class="fieldClass('slug')" class="admin-input-dark mt-2" placeholder="project-slug" /></label><label class="admin-label-dark">Status<select v-model="draft.status" class="admin-input-dark mt-2"><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label><label class="admin-label-dark">Device<select v-model="draft.device" class="admin-input-dark mt-2"><option value="phone">Phone mockup</option><option value="browser">Browser mockup</option></select></label><label v-if="isWorks" class="admin-label-dark">Card year<input v-model="draft.year" class="admin-input-dark mt-2" /></label><label class="admin-label-dark">Sort order<input v-model.number="draft.sortOrder" type="number" min="0" class="admin-input-dark mt-2" /></label><div class="border-t border-white/10 pt-5"><p class="admin-eyebrow !text-white/40">{{ isWorks ? 'Card tags' : 'Lab categories' }}</p><div class="mt-3 flex gap-2"><input v-model="draft._tagInput" class="admin-input-dark" placeholder="Add tag" @keyup.enter="addTag" /><button class="rounded-xl bg-white/10 px-3 text-sm" @click="addTag">+</button></div><div class="mt-3 flex flex-wrap gap-2"><span v-for="(tag, index) in listFor()" :key="tag" class="rounded-full bg-white/10 px-2 py-1 text-xs">{{ tag }} <button @click="removeTag(index)">×</button></span></div></div><div class="border-t border-white/10 pt-5"><p class="admin-eyebrow !text-white/40">{{ isWorks ? 'Card preview media' : 'Preview media' }}</p><label class="admin-label-dark mt-4">Video URL<input v-model="mediaVideoUrl" :class="fieldClass(isWorks ? 'previewVideoUrl' : 'videoUrl')" type="url" class="admin-input-dark mt-2" placeholder="https://cdn…" /></label><label class="admin-label-dark mt-4">Image fallback<input v-model="mediaImageUrl" :class="fieldClass(isWorks ? 'previewImageUrl' : 'imageUrl')" type="url" class="admin-input-dark mt-2" placeholder="https://cdn…" /></label></div><button class="w-full rounded-xl border border-white/15 px-4 py-3 text-sm text-red-300 hover:border-red-300" @click="back">Discard changes</button></aside>
     </div>
   </section>
 </template>

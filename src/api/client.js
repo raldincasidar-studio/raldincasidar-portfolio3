@@ -11,10 +11,13 @@ export async function apiFetch(path, options = {}) {
   })
   const payload = await response.json().catch(() => ({}))
   if (!response.ok) {
-    const error = new Error(payload.error?.message || 'Request failed')
+    const details = payload.error?.details
+    const error = new Error(payload.error?.message || 'We could not complete that request. Please try again.')
     error.status = response.status
     error.code = payload.error?.code
-    error.details = payload.error?.details
+    error.details = details
+    error.fieldErrors = details?.fieldErrors || {}
+    if (response.status === 422 && !payload.error?.message) error.message = 'Please correct the highlighted fields and try again.'
     throw error
   }
   return payload
