@@ -22,6 +22,13 @@ auditSchema.index({ createdAt: -1 }); auditSchema.index({ resourceType: 1, creat
 const analyticsSchema = new Schema({ eventType: { type: String, enum: ['page_view', 'case_study_view', 'lab_view'], required: true, index: true }, path: { type: String, required: true }, resourceType: { type: String, enum: ['page', 'work', 'lab'], default: 'page' }, resourceSlug: String, referrerOrigin: String, anonymousSessionId: { type: String, required: true }, deviceCategory: { type: String, enum: ['mobile', 'tablet', 'desktop', 'unknown'], default: 'unknown' }, occurredAt: { type: Date, default: Date.now, index: true }, expiresAt: { type: Date, index: { expires: 0 } } }, { versionKey: false })
 analyticsSchema.index({ resourceType: 1, resourceSlug: 1, occurredAt: -1 }); analyticsSchema.index({ referrerOrigin: 1, occurredAt: -1 })
 
+// Vite/serverless hot reloads can retain a model compiled from the previous
+// schema. Drop only that stale model so caseStudy cannot remain a String.
+const existingWorkModel = mongoose.models.Work
+if (existingWorkModel?.schema.path('caseStudy')?.instance === 'String') {
+  delete mongoose.connection.models.Work
+}
+
 export const Work = mongoose.models.Work || mongoose.model('Work', workSchema)
 export const Lab = mongoose.models.Lab || mongoose.model('Lab', labSchema)
 export const Admin = mongoose.models.Admin || mongoose.model('Admin', adminSchema)
