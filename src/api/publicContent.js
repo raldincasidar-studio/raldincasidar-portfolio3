@@ -27,7 +27,11 @@ export function normalizeCaseStudy(work) {
     client_name: data.clientName || '', year: data.year || work.year || '', type: data.type || '',
     case_title: data.caseTitle || work.title || '', case_description: data.caseDescription || work.description || '',
     hero_video: { type: data.hero?.type || work.device || 'phone', src: data.hero?.videoUrl || work.previewVideoUrl || '', poster: data.hero?.imageUrl || work.previewImageUrl || '' },
-    the_story: data.story || '', contribution: data.contribution || { role: '', client: '', year: '', discipline: '', scope: [] }, numbers: data.numbers || [],
+    the_story: data.story || '',
+    // Chapter 03 long-form content (structured blocks). Normalised defensively
+    // by PostContent, so it passes through untouched here.
+    post: data.post && typeof data.post === 'object' ? data.post : { intro: '', blocks: [] },
+    contribution: data.contribution || { role: '', client: '', year: '', discipline: '', scope: [] }, numbers: data.numbers || [],
     visual_identity: { colors_title: data.visualIdentity?.colorsTitle || '', colors_list: data.visualIdentity?.colors || [], fonts_title: data.visualIdentity?.fontsTitle || '', fonts_list: data.visualIdentity?.fonts || [] },
     solutions_overview: { description: data.solutionsOverview?.description || '', slides: (data.solutionsOverview?.slides || []).slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)).map((slide) => ({ video_url: slide.videoUrl || '', image_url: slide.imageUrl || '', video_type: slide.videoType || 'phone', description: slide.description || '' })) },
   }

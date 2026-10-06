@@ -249,6 +249,25 @@ Accept: application/json
             "sortOrder": 1
           }
         ]
+      },
+      "post": {
+        "intro": "One or two sentences that frame the story.",
+        "blocks": [
+          { "type": "heading", "level": 1, "text": "The problem hiding in plain sight" },
+          { "type": "paragraph", "text": "Body copy with **bold**, *italic*, `code` and [links](https://example.com)." },
+          { "type": "list", "ordered": false, "items": ["First point", "Second point"] },
+          { "type": "list", "ordered": true, "items": ["Step one", "Step two"] },
+          { "type": "quote", "text": "A line worth pulling out.", "cite": "Project brief" },
+          { "type": "image", "mediaType": "image", "url": "https://cdn.example.com/images/one.jpg", "alt": "Flow overview", "caption": "The rebuilt checkout flow.", "href": "https://example.com/detail" },
+          {
+            "type": "gallery",
+            "galleryItems": [
+              { "mediaType": "image", "url": "https://cdn.example.com/images/a.jpg", "alt": "A", "caption": "First", "href": "" },
+              { "mediaType": "video", "url": "https://cdn.example.com/videos/b.mp4", "alt": "B", "caption": "Second", "href": "" }
+            ]
+          },
+          { "type": "divider" }
+        ]
       }
     },
     "createdAt": "2026-09-22T05:00:00.000Z",
@@ -904,3 +923,80 @@ The browser must not call the geolocation provider. For `POST /api/analytics/eve
 ```
 
 The API derives the client IP from the request headers/socket and calls the local `fast-geoip` Node.js library. The frontend does not send `ipAddress` or `geo`; any client-supplied values are ignored/overwritten. Geo lookup failure does not block analytics event storage.
+
+## 16. Case study post content (`caseStudy.post`)
+
+The public case study page renders four chapters. Chapter 03 (“The Story”) is a
+long-form post stored on the work document:
+
+| Chapter | Content source |
+|---|---|
+| 01 · The Overview | `caseStudy.story` |
+| 02 · The Visual Identity | `caseStudy.visualIdentity` |
+| 03 · The Story | **`caseStudy.post`** |
+| 04 · Solutions Overview | `caseStudy.solutionsOverview` |
+
+Chapter 03 is hidden — and the Solutions Overview chapter renumbers to 03 — when
+`post.intro` and `post.blocks` are both empty.
+
+### Why structured blocks instead of HTML or Markdown
+
+`post.blocks` is an array of typed blocks rather than a raw HTML/Markdown
+payload. Every value is therefore validated at the API boundary and rendered as
+text, so authored content cannot inject markup into a public page. Long-form
+text inside a block still accepts inline Markdown (bold, italic,
+strikethrough, inline code, links, hard line breaks) which the frontend renders
+with `marked` and sanitises with `DOMPurify`.
+
+### Block reference
+
+| `type` | Fields | Notes |
+|---|---|---|
+| `heading` | `level` (1–3), `text` | Rendered as h3/h4/h5 to keep one h2 per section |
+| `paragraph` | `text` | Body copy |
+| `list` | `ordered` (boolean), `items` (string[]) | Bulleted or numbered |
+| `quote` | `text`, `cite` (optional) | Pull-quote with attribution |
+| `image` | `mediaType` (`image`\|`video`), `url`, `alt`, `caption`, `href` | Single full-width visual |
+| `gallery` | `galleryItems[]` (`{ mediaType, url, alt, caption, href }`) | Scrollable captioned row; 2 tiles on mobile, 3 tablet, 4 desktop |
+| `divider` | — | Visual separator |
+
+Post limits (enforced by Zod before the write reaches MongoDB):
+
+- `intro` ≤ 1 200 characters
+- `blocks` ≤ 200
+- block `text` ≤ 8 000 characters, `items` ≤ 60 entries of ≤ 2 000 characters
+- `galleryItems` ≤ 24 entries per gallery
+- `caption` ≤ 800 characters, `alt` ≤ 300 characters
+- `url` / `href` must be absolute `http(s)` URLs — `javascript:`, `data:` and
+  other schemes are rejected (this applies to every URL field in the API)
+
+Text fields are optional at the schema level and enforced per block type:
+
+- `heading` requires `text` and `level`
+- `paragraph`, `quote` require `text`
+- `list` requires at least one non-empty item
+- `image` requires `url`
+- `gallery` requires at least one `galleryItems` entry
+
+A block that fails validation rejects the whole write with `422` and a
+`details.fieldErrors.caseStudy` message. The admin editor prunes blocks that are
+still completely empty before sending, so a half-typed block never blocks a
+save.
+
+### Rendering contract
+
+- `mediaType: "video"` renders a muted, looping, inline `<video>` with a “Video”
+  badge. Gallery videos play only while their tile is the active one; solo
+  visuals always play.
+- Images are lazy-loaded below the fold and fall back to a labelled placeholder
+  when the asset cannot load.
+- `href`, when present, wraps the visual in a new-tab link with
+  `rel="noopener noreferrer"`.
+- Nothing in `post` is trusted: block types are matched against a fixed list and
+  all text is sanitised before it is bound.
+
+### Backward compatibility
+
+`post` is additive. Existing documents without it validate unchanged and simply
+render no chapter 03. `caseStudy` keeps its existing `z.record` shape so other
+case study fields are passed through untouched.

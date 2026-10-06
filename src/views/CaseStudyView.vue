@@ -9,6 +9,8 @@ import { computed, onBeforeUnmount, onMounted, ref, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { getWork } from "@/api/publicContent.js";
 import { normalizePublicError } from "@/utils/publicErrors.js";
+import PostContent from "@/components/casestudy/PostContent.vue";
+import { postHasContent } from "@/utils/postBlocks.js";
 
 const route = useRoute();
 const device = ref("phone");
@@ -106,6 +108,11 @@ function getWordColorProgress(index) {
 /* API-backed case-study data. The presentation model remains compatible with
  * the existing template so the visual layout is unchanged. */
 const requestError = ref(null);
+
+/* Chapter 03 only exists when the editor filled in post content, so the
+ * Solutions Overview chapter number follows it. */
+const hasPost = computed(() => postHasContent(pageData.value?.post));
+const solutionsChapter = computed(() => (hasPost.value ? "04" : "03"));
 
 async function fetchPageData() {
   isLoading.value = true;
@@ -258,7 +265,7 @@ onBeforeUnmount(() => {
     >
       <div v-reveal class="w-full lg:w-2/3 sm:p-4">
         <p class="text-subtext text-blue-500 font-geist text-xs sm:text-sm">
-          - CHAPTER 01: THE STORY
+          - CHAPTER 01: THE OVERVIEW
         </p>
 
         <!-- Story text -->
@@ -527,11 +534,48 @@ onBeforeUnmount(() => {
     </div>
   </section>
 
+  <!-- The Story — long-form post content (CHAPTER 03) -->
+  <section
+    v-if="isLoading || hasPost"
+    class="relative py-20 sm:py-28 lg:py-40 px-5 sm:px-8 bg-white"
+    style="--post-surface: #ffffff"
+  >
+    <div
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_at_center,rgba(187,230,246,0.5),transparent_70%)]"
+    />
+    <div class="relative z-[2] max-w-[1300px] mx-auto w-full">
+      <h5 v-reveal class="text-center text-xs sm:text-sm text-sky-500 tracking-wide">
+        CHAPTER 03
+      </h5>
+      <h2
+        v-reveal
+        class="text-gray-800 text-3xl sm:text-4xl lg:text-5xl my-6 sm:my-10 font-semibold text-center"
+      >
+        The Story
+      </h2>
+
+      <!-- Skeleton -->
+      <template v-if="isLoading">
+        <div class="mx-auto max-w-[44rem]">
+          <div class="h-5 w-full bg-gray-200 rounded animate-pulse mb-4"></div>
+          <div class="h-5 w-full bg-gray-200 rounded animate-pulse mb-4"></div>
+          <div class="h-5 w-4/5 bg-gray-200 rounded animate-pulse"></div>
+          <div
+            class="mt-10 h-56 sm:h-72 w-full bg-gray-200 rounded-2xl animate-pulse"
+          ></div>
+        </div>
+      </template>
+
+      <PostContent v-else :post="pageData.post" />
+    </div>
+  </section>
+
   <!-- Solutions Vid -->
   <section class="py-20 sm:py-28 lg:py-40 px-5 bg-[radial-gradient(#BBE6F6,#FFFFFF)]">
     <div class="relative max-w-[1300px] mx-auto w-full">
       <h5 v-reveal class="text-center text-xs sm:text-sm text-sky-500 tracking-wide">
-        CHAPTER 03
+        CHAPTER {{ solutionsChapter }}
       </h5>
       <h2
         v-reveal
