@@ -10,6 +10,7 @@ import { useRoute } from "vue-router";
 import { getWork } from "@/api/publicContent.js";
 import { normalizePublicError } from "@/utils/publicErrors.js";
 import PostContent from "@/components/casestudy/PostContent.vue";
+import PostToc from "@/components/casestudy/PostToc.vue";
 import { postHasContent } from "@/utils/postBlocks.js";
 
 const route = useRoute();
@@ -113,6 +114,9 @@ const requestError = ref(null);
  * Solutions Overview chapter number follows it. */
 const hasPost = computed(() => postHasContent(pageData.value?.post));
 const solutionsChapter = computed(() => (hasPost.value ? "04" : "03"));
+
+/* The element the "on this page" navigation measures reading progress against. */
+const postLayout = ref(null);
 
 async function fetchPageData() {
   isLoading.value = true;
@@ -567,7 +571,14 @@ onBeforeUnmount(() => {
         </div>
       </template>
 
-      <PostContent v-else :post="pageData.post" />
+      <div v-else ref="postLayout" class="post-layout">
+        <PostToc
+          :post="pageData.post"
+          :spy-target="postLayout"
+          :kicker="pageData.client_name"
+        />
+        <PostContent :post="pageData.post" />
+      </div>
     </div>
   </section>
 

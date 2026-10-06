@@ -10,11 +10,16 @@ import PostMedia from './PostMedia.vue'
  *                 scroll-snap, an highlighted active tile, a counter and
  *                 previous/next controls. 2 tiles on mobile, 3 on tablet,
  *                 4 on desktop, then it scrolls horizontally.
+ *
+ * Every visual also opens a full-screen preview: the component reports which
+ * item was picked and `PostContent` owns the lightbox.
  */
 const props = defineProps({
   items: { type: Array, default: () => [] },
   label: { type: String, default: 'Visual gallery' },
 })
+
+const emit = defineEmits(['open'])
 
 const galleryItems = computed(() => (props.items || []).filter((item) => item?.url))
 const isSolo = computed(() => galleryItems.value.length === 1)
@@ -65,6 +70,15 @@ function reset() {
   nextTick(updateActive)
 }
 
+/**
+ * Preview a tile full-screen. The row scrolls to it first so the highlighted
+ * tile behind the preview matches the one being shown.
+ */
+function openItem(index) {
+  goTo(index)
+  emit('open', index)
+}
+
 onMounted(() => {
   window.addEventListener('resize', updateActive)
   nextTick(updateActive)
@@ -75,8 +89,15 @@ watch(galleryItems, reset)
 
 <template>
   <template v-if="galleryItems.length">
-    <!-- One visual → full-width figure -->
-    <PostMedia v-if="isSolo" class="post-bleed" :item="galleryItems[0]" variant="solo" />
+    <!-- One visual → full-width figure that opens the full-screen preview -->
+    <PostMedia
+      v-if="isSolo"
+      class="post-bleed"
+      :item="galleryItems[0]"
+      variant="solo"
+      interactive
+      @open="emit('open', 0)"
+    />
 
     <!-- Many visuals → captioned, scroll-snapping row -->
     <div v-else class="post-bleed">
@@ -95,7 +116,9 @@ watch(galleryItems, reset)
             :ref="(instance) => setItemElement(instance, index)"
             :item="item"
             variant="tile"
+            interactive
             :active="index === activeIndex"
+            @open="openItem(index)"
           />
         </div>
       </div>

@@ -38,15 +38,24 @@ function ensureLinkHook() {
 
 /** Minimal allow-list sanitiser used when there is no DOM (tests/SSR). */
 function fallbackStrip(html) {
+  // Track anchors so a link whose `href` is rejected (javascript:, data:, …)
+  // drops its closing tag too instead of leaking a stray `</a>` into the page.
+  let openAnchors = 0
   return String(html).replace(/<\s*\/?\s*([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g, (match, tag) => {
     const name = tag.toLowerCase()
     if (!FALLBACK_TAGS.has(name)) return ''
     if (name === 'br') return '<br>'
     const closing = /^<\s*\//.test(match)
     if (name === 'a') {
-      if (closing) return '</a>'
+      if (closing) {
+        if (!openAnchors) return ''
+        openAnchors -= 1
+        return '</a>'
+      }
       const href = match.match(/href\s*=\s*"([^"]*)"/i)?.[1] || ''
-      return /^https?:\/\//i.test(href) ? `<a href="${href}" target="_blank" rel="noopener noreferrer nofollow">` : ''
+      if (!/^https?:\/\//i.test(href)) return ''
+      openAnchors += 1
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer nofollow">`
     }
     return closing ? `</${name}>` : `<${name}>`
   })
@@ -85,6 +94,9 @@ export function toPlainText(value) {
   const source = String(value ?? '')
   if (!source) return ''
   return source
+    // Raw HTML is dropped when rendering, so it must not leak into labels,
+    // anchors, summaries or word counts either.
+    .replace(/<[^>]*>/g, ' ')
     .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/[*_`~]/g, '')

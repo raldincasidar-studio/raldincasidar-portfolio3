@@ -990,10 +990,56 @@ save.
   visuals always play.
 - Images are lazy-loaded below the fold and fall back to a labelled placeholder
   when the asset cannot load.
-- `href`, when present, wraps the visual in a new-tab link with
-  `rel="noopener noreferrer"`.
+- `href`, when present, keeps the visual as a new-tab link with
+  `rel="noopener noreferrer"`. A visual without `href` is a button that opens
+  the full-screen preview instead.
 - Nothing in `post` is trusted: block types are matched against a fixed list and
   all text is sanitised before it is bound.
+
+### On-this-page navigation (derived, not stored)
+
+Heading blocks double as the chapter's navigation. Nothing extra is stored: the
+client derives the index with `buildPostHeadings(post)`, which the renderer and
+the navigation both call, so the anchor ids on the rendered headings and the
+links that point at them cannot drift apart.
+
+| Rule | Value |
+|---|---|
+| Anchor id | `post-` + slug of the heading text (`post-the-turning-point`) |
+| Duplicate titles | `-2`, `-3`, … suffix |
+| Ids used | only headings 1–3 that render text; a heading written as raw markup only is skipped |
+| Slug source | `toPlainText(text)`, so markdown and inline HTML never leak into an id, label or word count |
+
+Where it appears:
+
+- **≥1280px** — a sticky rail in the left gutter beside the reading column,
+  showing the current section, a reading-progress bar and a back-to-top control.
+  Media bleeds are reduced to `-3rem` at this width so they clear the rail.
+- **<1280px** — a sticky bar under the navbar showing the current section, which
+  expands into a scrollable sheet listing every heading.
+
+Behaviour: clicking an entry scrolls smoothly to the heading, clears the sticky
+header stack, keeps the highlight on the chosen entry while the scroll animates,
+and writes the anchor to the address bar with `history.replaceState` (no router
+navigation, no extra history entry). A deep link such as
+`/case-study/angels-pizza-app#post-the-mandate` is honoured once the post has
+loaded. `prefers-reduced-motion` switches the scroll to an instant jump.
+
+### Full-screen preview
+
+Tapping any gallery tile — or a solo visual without an `href` — opens a dialog
+rendered in a `<Teleport>` to `document.body`.
+
+- `role="dialog"`, `aria-modal="true"`, focus moves into the dialog on open and
+  returns to the tile that opened it on close; Tab is trapped inside.
+- Escape closes, ← / → step through the set, and on touch a horizontal swipe
+  steps while a downward swipe dismisses.
+- Page scroll is locked while open, compensating for the scrollbar so the layout
+  does not shift.
+- The counter, caption and any `href` belong to the visual currently shown;
+  neighbouring images are prefetched so paging feels instant.
+- The open fade is a CSS animation rather than Vue's `Transition` component,
+  which would add ~2.7 kB gzip to every page's initial bundle.
 
 ### Backward compatibility
 

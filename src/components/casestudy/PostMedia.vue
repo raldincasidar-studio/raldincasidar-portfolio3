@@ -17,7 +17,15 @@ const props = defineProps({
   variant: { type: String, default: 'tile' },
   /** Rendered in the placeholder when the asset cannot load. */
   fallbackLabel: { type: String, default: '' },
+  /**
+   * Makes the frame a button that asks for a full-screen preview. An item with
+   * its own `href` stays an outbound link instead — the author asked for the
+   * link, so the link wins.
+   */
+  interactive: { type: Boolean, default: false },
 })
+
+const emit = defineEmits(['open'])
 
 const failed = ref(false)
 const videoElement = ref(null)
@@ -34,7 +42,6 @@ watch(shouldPlay, (play) => {
 })
 const href = computed(() => (/^https?:\/\//i.test(props.item?.href || '') ? props.item.href : ''))
 const caption = computed(() => renderInline(props.item?.caption))
-const linkAttrs = computed(() => (href.value ? { href: href.value, target: '_blank', rel: 'noopener noreferrer' } : {}))
 const host = computed(() => {
   try {
     return new URL(props.item?.url || '').hostname.replace(/^www\./, '')
@@ -43,11 +50,27 @@ const host = computed(() => {
   }
 })
 const alt = computed(() => props.item?.alt || props.item?.caption || 'Case study visual')
+
+// <a> when the author linked the visual, <button> when it opens the lightbox,
+// plain <div> when it is a static preview (admin surfaces).
+const frameTag = computed(() => (href.value ? 'a' : props.interactive ? 'button' : 'div'))
+const isPreviewButton = computed(() => !href.value && props.interactive)
+const frameAttrs = computed(() => {
+  if (href.value) return { href: href.value, target: '_blank', rel: 'noopener noreferrer' }
+  if (isPreviewButton.value) return { type: 'button', 'aria-label': `Preview ${isVideo.value ? 'video' : 'image'}: ${alt.value}` }
+  return {}
+})
 </script>
 
 <template>
   <figure class="post-media" :class="[variant === 'solo' ? 'post-media-solo' : 'post-gallery-item', active ? 'is-active' : '']">
-    <component :is="href ? 'a' : 'div'" class="post-media-frame" v-bind="linkAttrs">
+    <component
+      :is="frameTag"
+      class="post-media-frame"
+      :class="{ 'is-interactive': isPreviewButton }"
+      v-bind="frameAttrs"
+      @click="isPreviewButton ? emit('open') : undefined"
+    >
       <video
         v-if="isVideo && !failed"
         ref="videoElement"
@@ -83,6 +106,12 @@ const alt = computed(() => props.item?.alt || props.item?.caption || 'Case study
           <path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14Z" />
         </svg>
         Video
+      </span>
+
+      <span v-if="isPreviewButton && !failed" class="post-media-zoom" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-3.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+        </svg>
       </span>
     </component>
 

@@ -93,6 +93,7 @@ onBeforeUnmount(() => {
 <template>
   <nav
     id="navbar"
+    data-site-navbar
     class="fixed top-0 left-0 right-0 z-50 py-3 sm:py-4 px-4 sm:px-6 lg:px-8 transition-all duration-300"
     :class="navbarClasses"
   >

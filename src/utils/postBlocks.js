@@ -132,6 +132,52 @@ export function prunePost(post) {
   }
 }
 
+/**
+ * Anchor id for a heading, namespaced so it can never collide with an id that
+ * already exists on the case-study page. Falls back to `post-section` when the
+ * heading has no letters or numbers to work with.
+ */
+export function slugifyHeading(text) {
+  const slug = toPlainText(text)
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64)
+    .replace(/-+$/g, '')
+  return `post-${slug || 'section'}`
+}
+
+/**
+ * The heading index behind the "on this page" navigation: every heading block
+ * in document order, with the exact id `PostContent` renders on that heading.
+ * Duplicate titles get a `-2`, `-3`, … suffix so anchors stay unique.
+ *
+ * Reads from `normalizePost` so the ids always match what is actually drawn —
+ * blocks dropped as empty still produce no anchor.
+ */
+export function buildPostHeadings(post) {
+  const { blocks } = normalizePost(post)
+  const seen = new Map()
+  const headings = []
+  blocks.forEach((block, blockIndex) => {
+    if (block.type !== 'heading') return
+    const text = toPlainText(block.text).trim()
+    if (!text) return
+    const base = slugifyHeading(text)
+    const count = seen.get(base) || 0
+    seen.set(base, count + 1)
+    headings.push({
+      id: count ? `${base}-${count + 1}` : base,
+      text,
+      level: Math.min(Math.max(Number(block.level) || 1, 1), 3),
+      blockIndex,
+    })
+  })
+  return headings
+}
+
 /** Defensive shape for rendering API data — never throws on partial content. */
 export function normalizePost(post) {
   const source = post && typeof post === 'object' ? post : {}
