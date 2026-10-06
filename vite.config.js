@@ -15,6 +15,13 @@ export default defineConfig({
   server: {
     // Allow any host so the app also works behind preview/proxy tunnels
     // (e.g. the Arena live preview). Remove for a strict local-only setup.
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
     allowedHosts: true,
   },
 })

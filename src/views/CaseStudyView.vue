@@ -649,7 +649,7 @@ onBeforeUnmount(() => {
       <button
         type="button"
         aria-label="Next solution highlight"
-        :disabled="isLoading || activeSlide === 4"
+        :disabled="isLoading || activeSlide === pageData.solutions_overview.slides.length - 1"
         class="inline-block p-3 sm:p-4 border border-black/20 rounded-full text-black/60 disabled:opacity-30 disabled:cursor-not-allowed hover:border-black/50 transition-colors"
         @click="goToSlide(activeSlide + 1)"
       >
