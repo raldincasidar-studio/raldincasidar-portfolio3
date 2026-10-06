@@ -69,6 +69,31 @@ Collection: `works`
         description: String,
         sortOrder: Number
       }]
+    },
+    // Chapter 03 — long-form post content. Structured blocks, never raw HTML:
+    // each value is validated at the API boundary and rendered as text.
+    post: {
+      intro: String,
+      blocks: [{
+        type: "heading" | "paragraph" | "list" | "quote" | "image" | "gallery" | "divider",
+        level: Number,          // heading only — 1..3
+        text: String,           // heading, paragraph, quote (inline Markdown)
+        cite: String,           // quote attribution
+        ordered: Boolean,       // list
+        items: [String],        // list
+        mediaType: "image" | "video",  // image
+        url: String,            // image
+        alt: String,            // image
+        caption: String,        // image
+        href: String,           // image — optional outbound link
+        galleryItems: [{        // gallery
+          mediaType: "image" | "video",
+          url: String,
+          alt: String,
+          caption: String,
+          href: String
+        }]
+      }]
     }
   },
 

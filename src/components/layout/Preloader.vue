@@ -32,11 +32,20 @@ onMounted(() => {
     window.addEventListener('preloader:data-ready', dataReadyHandler, { once: true })
   }
 
+  // Only media that is in (or just below) the first viewport may hold up the
+  // splash. Assets further down the page — including `loading="lazy"` images,
+  // which the browser will not even request until they are scrolled to — must
+  // never be awaited or the loader would sit there until its 12s safety net.
+  const inFirstView = (element) => {
+    const rect = element.getBoundingClientRect()
+    return rect.top < window.innerHeight * 1.25 && rect.bottom > 0
+  }
+
   // Give the routed view a tick to mount before scanning for assets.
   timers.push(
     setTimeout(() => {
-      const images = Array.from(document.querySelectorAll('img'))
-      const videos = Array.from(document.querySelectorAll('video'))
+      const images = Array.from(document.querySelectorAll('img')).filter(inFirstView)
+      const videos = Array.from(document.querySelectorAll('video')).filter(inFirstView)
       const assetPromises = []
 
       // Track <img> loads

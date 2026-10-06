@@ -12,7 +12,29 @@ const contributionSchema = new Schema({ role: String, client: String, year: Stri
 const heroSchema = new Schema({ type: { type: String, enum: ['phone', 'browser'] }, videoUrl: String, imageUrl: String }, { _id: false })
 const visualIdentitySchema = new Schema({ colorsTitle: String, colors: [colorSchema], fontsTitle: String, fonts: [fontSchema] }, { _id: false })
 const solutionsSchema = new Schema({ description: String, slides: [slideSchema] }, { _id: false })
-const caseStudySchema = new Schema({ clientName: String, year: String, type: String, caseTitle: String, caseDescription: String, hero: heroSchema, story: String, contribution: contributionSchema, numbers: [statSchema], visualIdentity: visualIdentitySchema, solutionsOverview: solutionsSchema }, { _id: false })
+
+/* ── Long-form post content (CHAPTER 03 · The Story) ─────────────────────
+   Structured content blocks instead of raw HTML/Markdown. Blocks keep every
+   value validated and escaped, so public rendering never injects markup.
+   Text fields support inline Markdown (bold, italic, links, code) only.   */
+const postMediaSchema = new Schema({ mediaType: { type: String, enum: ['image', 'video'], default: 'image' }, url: String, alt: String, caption: String, href: String }, { _id: false })
+const postBlockSchema = new Schema({
+  type: { type: String, enum: ['heading', 'paragraph', 'list', 'quote', 'image', 'gallery', 'divider'], required: true },
+  level: { type: Number, min: 1, max: 3 },
+  text: String,
+  cite: String,
+  ordered: { type: Boolean, default: false },
+  items: [String],
+  mediaType: { type: String, enum: ['image', 'video'] },
+  url: String,
+  alt: String,
+  caption: String,
+  href: String,
+  galleryItems: [postMediaSchema],
+}, { _id: false })
+const postSchema = new Schema({ intro: { type: String, default: '' }, blocks: { type: [postBlockSchema], default: [] } }, { _id: false })
+
+const caseStudySchema = new Schema({ clientName: String, year: String, type: String, caseTitle: String, caseDescription: String, hero: heroSchema, story: String, contribution: contributionSchema, numbers: [statSchema], visualIdentity: visualIdentitySchema, solutionsOverview: solutionsSchema, post: { type: postSchema, default: () => ({}) } }, { _id: false })
 const workSchema = new Schema({ slug: { type: String, required: true, unique: true, lowercase: true, trim: true, match: /^[a-z0-9]+(?:-[a-z0-9]+)*$/ }, title: { type: String, required: true, trim: true }, description: { type: String, required: true, trim: true }, tags: { type: [String], default: [] }, year: { type: String, default: '' }, device: { type: String, enum: ['phone', 'browser'], default: 'phone' }, previewVideoUrl: { type: String, required: true }, previewImageUrl: String, status, sortOrder: { type: Number, default: 0, min: 0 }, viewCount: { type: Number, default: 0 }, lastViewedAt: Date, publishedAt: Date, caseStudy: { type: caseStudySchema, default: () => ({}) } }, baseOptions)
 const labSchema = new Schema({ slug: { type: String, required: true, unique: true, lowercase: true, trim: true, match: /^[a-z0-9]+(?:-[a-z0-9]+)*$/ }, title: { type: String, required: true, trim: true }, description: { type: String, required: true, trim: true }, category: { type: String, default: '' }, categories: { type: [String], default: [] }, device: { type: String, enum: ['phone', 'browser'], default: 'phone' }, videoUrl: { type: String, required: true }, imageUrl: String, externalUrl: String, status, sortOrder: { type: Number, default: 0, min: 0 }, viewCount: { type: Number, default: 0 }, lastViewedAt: Date, publishedAt: Date }, baseOptions)
 const adminSchema = new Schema({ email: { type: String, required: true, unique: true, lowercase: true, trim: true }, passwordHash: { type: String, required: true }, role: { type: String, enum: ['admin'], default: 'admin' }, active: { type: Boolean, default: true }, lastLoginAt: Date, passwordChangedAt: Date, sessionVersion: { type: Number, default: 1 }, failedLoginCount: { type: Number, default: 0 }, lockedUntil: Date }, baseOptions)

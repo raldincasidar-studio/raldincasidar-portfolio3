@@ -2,6 +2,8 @@
 import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { adminApi } from '@/api/admin.js'
+import AdminPostEditor from '@/components/admin/AdminPostEditor.vue'
+import { prunePost } from '@/utils/postBlocks.js'
 
 const props = defineProps({ type: { type: String, required: true } })
 const route = useRoute()
@@ -16,6 +18,7 @@ const error = ref('')
 const fieldErrors = ref({})
 const savedSnapshot = ref('')
 
+const emptyPost = () => ({ intro: '', blocks: [] })
 const emptyCaseStudy = () => ({
   clientName: '', year: '', type: '', caseTitle: '', caseDescription: '', story: '',
   hero: { type: 'phone', videoUrl: '', imageUrl: '' },
@@ -23,6 +26,7 @@ const emptyCaseStudy = () => ({
   numbers: [],
   visualIdentity: { colorsTitle: '', colors: [], fontsTitle: '', fonts: [] },
   solutionsOverview: { description: '', slides: [] },
+  post: emptyPost(),
 })
 
 const draft = reactive({
@@ -53,6 +57,7 @@ function restoreLocalDraft() {
     draft.caseStudy.contribution = { ...emptyCaseStudy().contribution, ...(stored.caseStudy?.contribution || {}) }
     draft.caseStudy.visualIdentity = { ...emptyCaseStudy().visualIdentity, ...(stored.caseStudy?.visualIdentity || {}) }
     draft.caseStudy.solutionsOverview = { ...emptyCaseStudy().solutionsOverview, ...(stored.caseStudy?.solutionsOverview || {}) }
+    draft.caseStudy.post = { ...emptyPost(), ...(stored.caseStudy?.post || {}), blocks: Array.isArray(stored.caseStudy?.post?.blocks) ? stored.caseStudy.post.blocks : [] }
     localDraftSavedAt.value = stored._localDraftSavedAt || ''
   } catch {
     localStorage.removeItem(localDraftKey.value)
@@ -65,7 +70,12 @@ function persistLocalDraft() {
     const snapshot = JSON.parse(JSON.stringify(draft))
     const savedAt = new Date().toISOString()
     snapshot._localDraftSavedAt = savedAt
-    localStorage.setItem(localDraftKey.value, JSON.stringify(snapshot))
+    try {
+      localStorage.setItem(localDraftKey.value, JSON.stringify(snapshot))
+    } catch {
+      // Quota exceeded (large post content) — the API save is unaffected.
+      return
+    }
     localDraftSavedAt.value = savedAt
   }, 350)
 }
@@ -119,6 +129,9 @@ function normalize() {
     data.caseStudy.contribution.year = data.caseStudy.year
     delete data.videoUrl; delete data.imageUrl; delete data.category; delete data.categories
     data.caseStudy.hero = data.caseStudy.hero || { type: data.device, videoUrl: '', imageUrl: '' }
+    // Drop blocks the author started but left empty so a half-typed block
+    // never blocks the save with a validation error.
+    data.caseStudy.post = prunePost(data.caseStudy.post)
   } else {
     delete data.previewVideoUrl; delete data.previewImageUrl; delete data.tags; delete data.year; delete data.caseStudy
   }
@@ -139,6 +152,7 @@ async function load() {
     draft.caseStudy.contribution.year = draft.year
     draft.caseStudy.visualIdentity = { ...emptyCaseStudy().visualIdentity, ...(item.caseStudy?.visualIdentity || {}) }
     draft.caseStudy.solutionsOverview = { ...emptyCaseStudy().solutionsOverview, ...(item.caseStudy?.solutionsOverview || {}) }
+    draft.caseStudy.post = { ...emptyPost(), ...(item.caseStudy?.post || {}), blocks: Array.isArray(item.caseStudy?.post?.blocks) ? item.caseStudy.post.blocks : [] }
     resetSnapshot()
   } catch (e) { error.value = e.message } finally { loading.value = false }
 }
@@ -210,7 +224,7 @@ watch(draft, persistLocalDraft, { deep: true })
               <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4"><p class="admin-eyebrow">Detail page hero media</p><div class="mt-3 grid gap-3 sm:grid-cols-3"><label class="admin-label">Device<select v-model="draft.caseStudy.hero.type" class="admin-input mt-2"><option value="phone">Phone</option><option value="browser">Browser</option></select></label><label class="admin-label sm:col-span-2">Hero video URL<input v-model="draft.caseStudy.hero.videoUrl" type="url" class="admin-input mt-2" placeholder="https://cdn…" /></label></div><label class="admin-label mt-3">Hero image fallback<input v-model="draft.caseStudy.hero.imageUrl" type="url" class="admin-input mt-2" placeholder="https://cdn…" /></label></div>
               <label class="admin-label">Hero case title<textarea v-model="draft.caseStudy.caseTitle" rows="3" class="admin-input mt-2" /></label>
               <label class="admin-label">Hero case description<textarea v-model="draft.caseStudy.caseDescription" rows="5" class="admin-input mt-2" /></label>
-              <label class="admin-label">The story<textarea v-model="draft.caseStudy.story" rows="7" class="admin-input mt-2" /></label>
+              <label class="admin-label">The overview <span class="font-normal text-gray-400">(chapter 01 headline)</span><textarea v-model="draft.caseStudy.story" rows="7" class="admin-input mt-2" /></label>
             </div>
             <div v-else class="space-y-5 border-t pt-6"><p class="admin-eyebrow">App details</p><label class="admin-label">External demo URL<input v-model="draft.externalUrl" type="url" class="admin-input mt-2" placeholder="https://…" /></label></div>
           </div>
@@ -223,6 +237,8 @@ watch(draft, persistLocalDraft, { deep: true })
           <div class="admin-editor-card"><div class="admin-editor-heading"><div><p class="admin-eyebrow">Case study page · numbers</p><h2 class="admin-section-title">Results and statistics</h2></div><button class="admin-button-secondary" @click="addNumber">+ Add stat</button></div><div v-if="!draft.caseStudy.numbers.length" class="admin-subtle-empty">Add the metrics shown in the public numbers section.</div><div v-for="(stat, index) in draft.caseStudy.numbers" :key="index" class="mb-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto]"><input v-model="stat.label" class="admin-input" placeholder="APP SALES" /><input v-model="stat.value" class="admin-input" placeholder="+100%" /><button class="text-sm text-red-500" @click="removeNumber(index)">Remove</button></div></div>
 
           <div class="admin-editor-card"><div class="admin-editor-heading"><div><p class="admin-eyebrow">Case study page · visual identity</p><h2 class="admin-section-title">Colors and fonts</h2></div></div><label class="admin-label">Colors section title<input v-model="draft.caseStudy.visualIdentity.colorsTitle" class="admin-input mt-2" /></label><div class="mt-4 flex items-center justify-between"><span class="admin-label">Color palette</span><button class="admin-button-secondary" @click="addColor">+ Add color</button></div><div v-for="(color, index) in draft.caseStudy.visualIdentity.colors" :key="index" class="mt-3 grid gap-3 sm:grid-cols-[auto_1fr_1fr_auto]"><input v-model="color.hex" type="color" class="h-11 w-14 rounded-lg border p-1" /><input v-model="color.name" class="admin-input" placeholder="Lemon Orange" /><input v-model="color.hex" class="admin-input" placeholder="#FAD81E" /><button class="text-sm text-red-500" @click="removeColor(index)">Remove</button></div><label class="admin-label mt-6">Fonts section title<input v-model="draft.caseStudy.visualIdentity.fontsTitle" class="admin-input mt-2" /></label><div class="mt-4 flex items-center justify-between"><span class="admin-label">Fonts</span><button class="admin-button-secondary" @click="addFont">+ Add font</button></div><div v-for="(font, index) in draft.caseStudy.visualIdentity.fonts" :key="index" class="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto]"><input v-model="font.label" class="admin-input" placeholder="PRIMARY" /><input v-model="font.name" class="admin-input" placeholder="POPPINS FONT" /><button class="text-sm text-red-500" @click="removeFont(index)">Remove</button></div></div>
+
+          <AdminPostEditor :post="draft.caseStudy.post" />
 
           <div class="admin-editor-card"><div class="admin-editor-heading"><div><p class="admin-eyebrow">Case study page · solutions</p><h2 class="admin-section-title">Solutions overview</h2></div><button class="admin-button-secondary" @click="addSlide">+ Add slide</button></div><label class="admin-label">Section description<textarea v-model="draft.caseStudy.solutionsOverview.description" rows="4" class="admin-input mt-2" /></label><div v-for="(slide, index) in draft.caseStudy.solutionsOverview.slides" :key="index" class="mt-5 rounded-2xl border border-gray-200 p-4"><div class="mb-3 flex items-center justify-between"><strong>Slide {{ index + 1 }}</strong><div class="flex gap-3 text-sm"><button :disabled="index === 0" @click="moveSlide(index, -1)">↑</button><button :disabled="index === draft.caseStudy.solutionsOverview.slides.length - 1" @click="moveSlide(index, 1)">↓</button><button class="text-red-500" @click="removeSlide(index)">Remove</button></div></div><div class="grid gap-3 sm:grid-cols-2"><label class="admin-label">Video URL<input v-model="slide.videoUrl" type="url" class="admin-input mt-2" placeholder="https://cdn…" /></label><label class="admin-label">Image fallback<input v-model="slide.imageUrl" type="url" class="admin-input mt-2" placeholder="https://cdn…" /></label><label class="admin-label">Video type<select v-model="slide.videoType" class="admin-input mt-2"><option value="phone">Phone</option><option value="web">Browser</option></select></label><label class="admin-label">Order<input v-model.number="slide.sortOrder" type="number" min="0" class="admin-input mt-2" /></label></div><label class="admin-label mt-3">Slide description<textarea v-model="slide.description" rows="3" class="admin-input mt-2" /></label></div></div>
         </template>
