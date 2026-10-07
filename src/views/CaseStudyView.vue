@@ -538,55 +538,11 @@ onBeforeUnmount(() => {
     </div>
   </section>
 
-  <!-- The Story — long-form post content (CHAPTER 03) -->
-  <section
-    v-if="isLoading || hasPost"
-    class="relative py-20 sm:py-28 lg:py-40 px-5 sm:px-8 bg-white"
-    style="--post-surface: #ffffff"
-  >
-    <div
-      aria-hidden="true"
-      class="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_at_center,rgba(187,230,246,0.5),transparent_70%)]"
-    />
-    <div class="relative z-[2] max-w-[1300px] mx-auto w-full">
-      <h5 v-reveal class="text-center text-xs sm:text-sm text-sky-500 tracking-wide">
-        CHAPTER 03
-      </h5>
-      <h2
-        v-reveal
-        class="text-gray-800 text-3xl sm:text-4xl lg:text-5xl my-6 sm:my-10 font-semibold text-center"
-      >
-        The Story
-      </h2>
-
-      <!-- Skeleton -->
-      <template v-if="isLoading">
-        <div class="mx-auto max-w-[44rem]">
-          <div class="h-5 w-full bg-gray-200 rounded animate-pulse mb-4"></div>
-          <div class="h-5 w-full bg-gray-200 rounded animate-pulse mb-4"></div>
-          <div class="h-5 w-4/5 bg-gray-200 rounded animate-pulse"></div>
-          <div
-            class="mt-10 h-56 sm:h-72 w-full bg-gray-200 rounded-2xl animate-pulse"
-          ></div>
-        </div>
-      </template>
-
-      <div v-else ref="postLayout" class="post-layout">
-        <PostToc
-          :post="pageData.post"
-          :spy-target="postLayout"
-          :kicker="pageData.client_name"
-        />
-        <PostContent :post="pageData.post" />
-      </div>
-    </div>
-  </section>
-
   <!-- Solutions Vid -->
   <section class="py-20 sm:py-28 lg:py-40 px-5 bg-[radial-gradient(#BBE6F6,#FFFFFF)]">
     <div class="relative max-w-[1300px] mx-auto w-full">
       <h5 v-reveal class="text-center text-xs sm:text-sm text-sky-500 tracking-wide">
-        CHAPTER {{ solutionsChapter }}
+        CHAPTER 03
       </h5>
       <h2
         v-reveal
@@ -723,6 +679,50 @@ onBeforeUnmount(() => {
           />
         </svg>
       </button>
+    </div>
+  </section>
+
+  <!-- The Story — long-form post content (CHAPTER 03) -->
+  <section
+    v-if="isLoading || hasPost"
+    class="relative py-20 sm:py-28 lg:py-40 px-5 sm:px-8 bg-white"
+    style="--post-surface: #ffffff"
+  >
+    <div
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_at_center,rgba(187,230,246,0.5),transparent_70%)]"
+    />
+    <div class="relative z-[2] max-w-[1300px] mx-auto w-full">
+      <h5 v-reveal class="text-center text-xs sm:text-sm text-sky-500 tracking-wide">
+        CHAPTER 04
+      </h5>
+      <h2
+        v-reveal
+        class="text-gray-800 text-3xl sm:text-4xl lg:text-5xl my-6 sm:my-10 font-semibold text-center"
+      >
+        The Story
+      </h2>
+
+      <!-- Skeleton -->
+      <template v-if="isLoading">
+        <div class="mx-auto max-w-[44rem]">
+          <div class="h-5 w-full bg-gray-200 rounded animate-pulse mb-4"></div>
+          <div class="h-5 w-full bg-gray-200 rounded animate-pulse mb-4"></div>
+          <div class="h-5 w-4/5 bg-gray-200 rounded animate-pulse"></div>
+          <div
+            class="mt-10 h-56 sm:h-72 w-full bg-gray-200 rounded-2xl animate-pulse"
+          ></div>
+        </div>
+      </template>
+
+      <div v-else ref="postLayout" class="post-layout">
+        <PostToc
+          :post="pageData.post"
+          :spy-target="postLayout"
+          :kicker="pageData.client_name"
+        />
+        <PostContent :post="pageData.post" />
+      </div>
     </div>
   </section>
   </template>
