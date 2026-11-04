@@ -58,3 +58,8 @@ export const Admin = mongoose.models.Admin || mongoose.model('Admin', adminSchem
 export const SiteSettings = mongoose.models.SiteSettings || mongoose.model('SiteSettings', settingsSchema)
 export const AuditEvent = mongoose.models.AuditEvent || mongoose.model('AuditEvent', auditSchema)
 export const AnalyticsEvent = mongoose.models.AnalyticsEvent || mongoose.model('AnalyticsEvent', analyticsSchema)
+
+const dropboxIntegrationSchema = new Schema({ key: { type: String, unique: true, default: 'global' }, appKey: String, appSecret: { type: String, select: false }, refreshToken: { type: String, select: false }, accountName: String }, baseOptions)
+const dropboxOAuthStateSchema = new Schema({ stateHash: { type: String, unique: true }, adminId: String, sessionHash: String, verifier: String, expiresAt: { type: Date, index: { expires: 0 } } }, { versionKey: false })
+export const DropboxIntegration = mongoose.models.DropboxIntegration || mongoose.model('DropboxIntegration', dropboxIntegrationSchema)
+export const DropboxOAuthState = mongoose.models.DropboxOAuthState || mongoose.model('DropboxOAuthState', dropboxOAuthStateSchema)

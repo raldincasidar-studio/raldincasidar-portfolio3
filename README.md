@@ -167,3 +167,36 @@ The **preloader, navbar and footer are applied automatically** via
   `@tailwindcss/vite`.
 - The preloader has built-in safety nets (8s per-video, 12s overall) so it
   can never get stuck.
+
+## Dropbox media integration
+
+The admin media library supports JPEG, PNG, GIF and WebP images and MP4 and WebM videos up to 4 MB,
+subject to the deployment provider's request body limit. Existing direct URLs
+continue to work. Previews of existing videos larger than 4 MB are unavailable, but those videos can still be selected. Dropbox may not provide thumbnails for every file.
+
+1. Create a Dropbox app, preferably with **App folder** access. Enable
+   `files.metadata.read`, `files.content.read`, `files.content.write`,
+   `account_info.read`, `sharing.read`, and `sharing.write` and apply changes.
+2. Set `DROPBOX_ENCRYPTION_KEY` to 32 random bytes encoded as 64 hex characters
+   in server environment variables. Keep a secure backup outside the database.
+   Losing or changing it requires reconnecting. Never expose it via `VITE_*`.
+3. Register an exact OAuth redirect URI in the Dropbox app console, and set the
+   server-only `DROPBOX_REDIRECT_URI` to that same URI, for example
+   `https://your-site.example/api/admin/dropbox/connection/callback`. For local
+   development use `http://localhost:5173/api/admin/dropbox/connection/callback`.
+4. Sign in to the admin portal, open Settings, save your app key and, if needed,
+   its app secret, then connect Dropbox. The server encrypts the refresh token;
+   it is never returned to the browser. A changed app key or secret requires
+   reconnecting. To revoke authorization entirely, also revoke the app in Dropbox.
+5. Open Media library or choose Dropbox from an image field. Selecting/copying
+   a file creates or reuses a public link after confirmation. Anyone with that
+   link can access the image, including when a post is only a draft. Public links
+   can break due to deletion, sharing restrictions or Dropbox bandwidth limits;
+   Dropbox is not a guaranteed CDN. Disconnecting does not revoke existing links.
+
+Deletion is recoverable only within Dropbox's applicable history retention.
+Deleting a file may break published content. Uploads never overwrite files.
+If connecting fails, check the exact redirect, permitted scopes and account/team
+sharing policy. Browser requests must use the same origin as the API proxy.
+The sandbox may not reach Dropbox or MongoDB; use mocks locally and verify with a
+real account and deployment before relying on the integration.

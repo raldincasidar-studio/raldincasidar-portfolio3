@@ -1,0 +1,83 @@
+import express from 'express'
+import crypto from 'node:crypto'
+import { DropboxIntegration, DropboxOAuthState } from './models.js'
+import { requireAuth, loadAdmin, cookieName } from './auth.js'
+import { recordAudit } from './audit.js'
+import { seal, unseal, encryptionKey, mediaType, directLink, dropboxRequest } from './dropbox.js'
+
+const router = express.Router()
+const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res)).catch(next)
+const hash = value => crypto.createHash('sha256').update(value).digest('hex')
+const fail = (message, status = 400) => { throw Object.assign(new Error(message), { status }) }
+const callbackUrl = () => { const value = process.env.DROPBOX_REDIRECT_URI; if (!value || (!value.startsWith('https://') && !value.startsWith('http://localhost:'))) fail('Set DROPBOX_REDIRECT_URI to the registered HTTPS callback URL.', 503); return value }
+const pathValue = path => { if (typeof path !== 'string' || path.length > 1000 || (path && (!path.startsWith('/') || path.endsWith('/') || /[\x00-\x1f]/.test(path) || path.split('/').some(x => x === '.' || x === '..')))) fail('Invalid Dropbox folder path.'); return path }
+const fileId = id => { if (typeof id !== 'string' || !/^id:[a-zA-Z0-9_-]+$/.test(id)) fail('Invalid file ID.'); return id }
+const config = () => DropboxIntegration.findOne({ key: 'global' }).select('+appSecret +refreshToken')
+async function oauthToken(body) {
+  const response = await fetch('https://api.dropbox.com/oauth2/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(body), signal: AbortSignal.timeout(25000) })
+  if (!response.ok) fail('Dropbox authorization failed. Check your app configuration and reconnect.', 502)
+  return response.json()
+}
+let cachedToken = null, pendingToken = null
+async function token() {
+  // Check the current persisted credential on every call, including across server instances.
+  const c = await config()
+  if (!c?.refreshToken) fail('Connect Dropbox in Settings first.', 409)
+  const fingerprint = hash(c.appKey + ':' + c.refreshToken + ':' + (c.appSecret || ''))
+  if (cachedToken?.fingerprint === fingerprint && cachedToken.expires > Date.now() + 60000) return cachedToken.value
+  if (pendingToken?.fingerprint === fingerprint) return pendingToken.promise
+  const promise = (async () => { const args = { grant_type: 'refresh_token', refresh_token: unseal(c.refreshToken), client_id: c.appKey }; if (c.appSecret) args.client_secret = unseal(c.appSecret); const result = await oauthToken(args); if (!result.access_token) fail('Dropbox did not return an access token.', 502); cachedToken = { value: result.access_token, fingerprint, expires: Date.now() + (result.expires_in || 14400) * 1000 }; return cachedToken.value })()
+  pendingToken = { fingerprint, promise }
+  try { return await promise } finally { if (pendingToken?.promise === promise) pendingToken = null }
+}
+async function call(endpoint, body, options = {}) { let t = await token(); try { return await dropboxRequest(endpoint, t, body, options) } catch (e) { if (e.status !== 409 || !e.message.startsWith('Dropbox authorization')) throw e; cachedToken = null; t = await token(); return dropboxRequest(endpoint, t, body, options) } }
+function checkCsrf(req, res, next) {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next()
+  const site = req.get('sec-fetch-site'), origin = req.get('origin')
+  if (site && site !== 'same-origin') return res.status(403).json({ error: { message: 'Cross-origin request denied.' } })
+  if (!site && (!origin || (origin !== process.env.FRONTEND_ORIGIN && origin !== `${req.protocol}://${req.get('host')}`))) return res.status(403).json({ error: { message: 'Origin verification failed.' } })
+  next()
+}
+router.use(requireAuth, loadAdmin, (req, res, next) => { res.set('Cache-Control', 'no-store'); next() }, checkCsrf)
+router.get('/connection', wrap(async (_req, res) => { const c = await config(); res.json({ data: { appKey: c?.appKey || '', hasSecret: !!c?.appSecret, connected: !!c?.refreshToken, accountName: c?.accountName || '' } }) }))
+router.put('/connection/config', wrap(async (req, res) => { const { appKey, appSecret } = req.body || {}; if (typeof appKey !== 'string' || !/^[a-zA-Z0-9]{5,100}$/.test(appKey) || (appSecret !== undefined && (typeof appSecret !== 'string' || appSecret.length > 300))) fail('Enter a valid Dropbox app key and secret.'); encryptionKey(); const old = await config(); const changed = old?.appKey && old.appKey !== appKey; const update = { appKey }; if (appSecret) { update.appSecret = seal(appSecret); update.refreshToken = null; update.accountName = '' }; if (changed) { update.refreshToken = null; update.accountName = ''; if (!appSecret) update.appSecret = null }; await DropboxIntegration.findOneAndUpdate({ key: 'global' }, { $set: update }, { upsert: true }); cachedToken = null; await recordAudit(req, { action: 'dropbox_config', resourceType: 'integration', summary: 'Dropbox configuration updated' }); res.json({ data: { ok: true } }) }))
+router.post('/connection/start', wrap(async (req, res) => { const c = await config(); if (!c?.appKey) fail('Set your Dropbox app key first.', 409); encryptionKey(); const state = crypto.randomBytes(32).toString('base64url'), verifier = crypto.randomBytes(32).toString('base64url'); await DropboxOAuthState.create({ stateHash: hash(state), adminId: req.auth.sub, sessionHash: hash(req.cookies[cookieName] || ''), verifier: seal(verifier), expiresAt: new Date(Date.now() + 10 * 60 * 1000) }); const url = new URL('https://www.dropbox.com/oauth2/authorize'); for (const [k,v] of Object.entries({ client_id: c.appKey, response_type: 'code', token_access_type: 'offline', redirect_uri: callbackUrl(), state, code_challenge: crypto.createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256' })) url.searchParams.set(k,v); res.json({ data: { url: url.toString() } }) }))
+router.get('/connection/callback', wrap(async (req, res) => { const { state, code, error } = req.query; if (typeof state !== 'string' || state.length > 200) fail('Invalid Dropbox authorization state.'); const saved = await DropboxOAuthState.findOneAndDelete({ stateHash: hash(state), adminId: req.auth.sub, sessionHash: hash(req.cookies[cookieName] || ''), expiresAt: { $gt: new Date() } }); if (!saved) fail('Dropbox authorization expired or is invalid. Please reconnect.'); if (error || typeof code !== 'string' || code.length > 2000) return res.redirect('/admin/settings?dropbox=cancelled'); const c = await config(); if (!c?.appKey) fail('Dropbox configuration is missing.'); const args = { code, grant_type: 'authorization_code', client_id: c.appKey, redirect_uri: callbackUrl(), code_verifier: unseal(saved.verifier) }; if (c.appSecret) args.client_secret = unseal(c.appSecret); const result = await oauthToken(args); if (!result.refresh_token || !result.access_token) fail('Dropbox did not grant offline access.', 502); const account = await dropboxRequest('users/get_current_account', result.access_token, undefined); await DropboxIntegration.updateOne({ key: 'global' }, { $set: { refreshToken: seal(result.refresh_token), accountName: account.name?.display_name || '' } }); cachedToken = null; await recordAudit(req, { action: 'dropbox_connect', resourceType: 'integration', summary: 'Dropbox connected' }); res.redirect('/admin/settings?dropbox=connected') }))
+router.delete('/connection', wrap(async (req,res) => { await DropboxIntegration.updateOne({ key: 'global' }, { $unset: { refreshToken: 1, accountName: 1 } }); cachedToken = null; await recordAudit(req, { action: 'dropbox_disconnect', resourceType: 'integration', summary: 'Dropbox disconnected' }); res.json({ data: { ok: true } }) }))
+router.get('/usage', wrap(async (_req,res) => { const data = await call('users/get_space_usage', undefined, { retry: true }); const type = data.allocation?.['.tag']; const allocated = ['individual', 'team'].includes(type) ? data.allocation.allocated : null; const used = type === 'team' ? data.allocation.used : data.used; res.json({ data: { used: used ?? null, allocated: allocated ?? null, remaining: allocated != null && used != null ? Math.max(0, allocated - used) : null, allocationType: type } }) }))
+const cleanEntries = entries => entries.filter(x => x['.tag'] === 'file' || x['.tag'] === 'folder').map(x => ({ type: x['.tag'], id: x.id, name: x.name, path: x.path_display, size: x.size, modified: x.server_modified, rev: x.rev }))
+router.get('/files', wrap(async (req,res) => { const r = await call('files/list_folder', { path: pathValue(req.query.path || ''), recursive: false, include_deleted: false, limit: 100 }, { retry: true }); res.json({ data: { entries: cleanEntries(r.entries), cursor: r.has_more ? r.cursor : null } }) }))
+router.post('/files/continue', wrap(async (req,res) => { if (typeof req.body?.cursor !== 'string' || req.body.cursor.length > 5000) fail('Invalid cursor.'); const r = await call('files/list_folder/continue', { cursor: req.body.cursor }, { retry: true }); res.json({ data: { entries: cleanEntries(r.entries), cursor: r.has_more ? r.cursor : null } }) }))
+
+// Private preview proxy: browsing never creates a shared link or reveals a token.
+router.get('/preview', wrap(async (req, res) => {
+  const id = fileId(req.query.id)
+  const meta = await call('files/get_metadata', { path: id }, { retry: true })
+  if (meta['.tag'] !== 'file') fail('Select a file.')
+  const name = meta.name || ''
+  const isImage = /\.(jpe?g|png|gif|webp)$/i.test(name)
+  const isVideo = /\.(mp4|webm)$/i.test(name)
+  if (!isImage && !isVideo) fail('Preview is unavailable for this file type.', 415)
+  const videoDownload = isVideo && req.query.full === '1'
+  if (videoDownload && (!Number.isFinite(meta.size) || meta.size > 4 * 1024 * 1024)) fail('Video preview is available for files up to 4 MB.', 413)
+  const arg = videoDownload ? { path: id } : { resource: { '.tag': 'path', path: id }, format: 'jpeg', size: req.query.full === '1' ? 'w1024h768' : 'w256h256', mode: 'bestfit' }
+  const requestPreview = async (accessToken) => fetch(`https://content.dropboxapi.com/2/files/${videoDownload ? 'download' : 'get_thumbnail_v2'}`, {
+    method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Dropbox-API-Arg': JSON.stringify(arg), ...(videoDownload && /^bytes=\d+-\d*$/.test(req.get('range') || '') ? { Range: req.get('range') } : {}) }, signal: AbortSignal.timeout(25000)
+  })
+  let response = await requestPreview(await token())
+  if (response.status === 401) { cachedToken = null; response = await requestPreview(await token()) }
+  if (!response.ok) fail('Preview unavailable for this file.', 502)
+  if (Number(response.headers.get('content-length')) > 4 * 1024 * 1024) fail('Preview is too large.', 413)
+  const bytes = Buffer.from(await response.arrayBuffer())
+  if (bytes.length > 4 * 1024 * 1024) fail('Preview is too large.', 413)
+  res.set('Content-Type', videoDownload ? (/\.webm$/i.test(name) ? 'video/webm' : 'video/mp4') : 'image/jpeg')
+  res.set('X-Content-Type-Options', 'nosniff')
+  if (videoDownload && response.status === 206 && response.headers.get('content-range')) {
+    res.status(206).set('Content-Range', response.headers.get('content-range')).set('Accept-Ranges', 'bytes')
+  }
+  res.send(bytes)
+}))
+router.post('/files', express.raw({ type: 'application/octet-stream', limit: '4mb' }), wrap(async (req,res) => { const folder = pathValue(req.query.path || ''), name = req.query.name; if (typeof name !== 'string' || name.length > 200 || !name || /[/\\\x00-\x1f]/.test(name) || name === '.' || name === '..' || /[.\s]$/.test(name)) fail('Invalid filename.'); if (!Buffer.isBuffer(req.body) || !req.body.length || !mediaType(req.body)) fail('Upload a valid JPEG, PNG, GIF, WebP, MP4 or WebM file.'); const ext = name.split('.').pop().toLowerCase(); if (!({ 'image/jpeg': ['jpg','jpeg'], 'image/png': ['png'], 'image/gif': ['gif'], 'image/webp': ['webp'], 'video/mp4': ['mp4'], 'video/webm': ['webm'] }[mediaType(req.body)] || []).includes(ext)) fail('File extension does not match media contents.'); const r = await call('files/upload', req.body, { content: true, arg: { path: `${folder}/${name}`, mode: 'add', autorename: true, mute: false } }); await recordAudit(req, { action: 'dropbox_upload', resourceType: 'media', resourceTitle: r.path_display, summary: 'Uploaded Dropbox media' }); res.json({ data: cleanEntries([{ ...r, '.tag': 'file' }])[0] }) }))
+router.post('/files/link', wrap(async (req,res) => { if (req.body?.confirmPublic !== true) fail('Confirm public access before creating a link.'); const id = fileId(req.body?.id); const meta = await call('files/get_metadata', { path: id }, { retry: true }); if (meta['.tag'] !== 'file' || !/\.(jpe?g|png|gif|webp|mp4|webm)$/i.test(meta.name || '')) fail('Select a supported image or video file.'); let links = await call('sharing/list_shared_links', { path: id, direct_only: true }, { retry: true }); let link = links.links?.find(x => x.link_permissions?.resolved_visibility?.['.tag'] === 'public'); if (!link) { try { link = await call('sharing/create_shared_link_with_settings', { path: id, settings: { requested_visibility: 'public' } }) } catch (err) { /* A prior or concurrent create may have succeeded. */ links = await call('sharing/list_shared_links', { path: id, direct_only: true }, { retry: true }); link = links.links?.find(x => x.link_permissions?.resolved_visibility?.['.tag'] === 'public'); if (!link) throw err } } if (link.link_permissions?.resolved_visibility?.['.tag'] !== 'public') fail('Dropbox did not grant public access. Check your sharing policy.', 409); const url = directLink(link.url); await recordAudit(req, { action: 'dropbox_share', resourceType: 'media', resourceTitle: meta.path_display, summary: 'Selected publicly shared Dropbox media' }); res.json({ data: { url, id: meta.id, path: meta.path_display } }) }))
+router.delete('/files', wrap(async (req,res) => { if (req.body?.confirm !== true) fail('Confirm the exact file before deleting.'); const id = fileId(req.body?.id); const meta = await call('files/get_metadata', { path: id }, { retry: true }); if (meta['.tag'] !== 'file' || meta.path_display !== req.body.path || meta.rev !== req.body.rev) fail('The file changed. Refresh the library and confirm again.', 409); const result = await call('files/delete_v2', { path: id }); await recordAudit(req, { action: 'dropbox_delete', resourceType: 'media', resourceTitle: meta.path_display, summary: 'Deleted Dropbox image' }); res.json({ data: { path: result.metadata.path_display } }) }))
+export default router

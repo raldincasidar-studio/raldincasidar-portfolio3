@@ -3,7 +3,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAdminSession } from '@/composables/useAdminSession.js'
 const emit = defineEmits(['close'])
 const route = useRoute(); const router = useRouter(); const session = useAdminSession()
-const links = [{ label: 'Dashboard', to: '/admin', icon: '▦' }, { label: 'Case studies', to: '/admin/works', icon: '◫' }, { label: 'Apps Lab', to: '/admin/labs', icon: '✦' }, { label: 'Settings', to: '/admin/settings', icon: '⚙' }]
+const links = [{ label: 'Dashboard', to: '/admin', icon: '▦' }, { label: 'Case studies', to: '/admin/works', icon: '◫' }, { label: 'Apps Lab', to: '/admin/labs', icon: '✦' }, { label: 'Media library', to: '/admin/media', icon: '▧' }, { label: 'Settings', to: '/admin/settings', icon: '⚙' }]
 async function logout() { await session.logout(); router.push('/admin/login') }
 </script>
 <template>
