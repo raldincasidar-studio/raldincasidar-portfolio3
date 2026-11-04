@@ -11,7 +11,7 @@ onMounted(() => { load(); const value = new URLSearchParams(location.search).get
 <template>
   <div class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
     <p class="admin-eyebrow">Integrations</p><h2 class="admin-section-title">Dropbox media</h2>
-    <p class="mt-2 max-w-2xl text-sm leading-6 text-gray-500">Connect a Dropbox app to upload and select images. An app key alone cannot access files. Use App folder access and enable file metadata, content, account info and sharing read/write scopes.</p>
+    <p class="mt-2 max-w-2xl text-sm leading-6 text-gray-500">Connect a Dropbox app to upload and select images and videos. An app key alone cannot access files. Use App folder access and enable file metadata, content, account info and sharing read/write scopes.</p>
     <p class="mt-4 text-sm font-semibold" :class="status.connected ? 'text-emerald-600' : 'text-gray-500'">{{ status.connected ? `Connected${status.accountName ? ' · ' + status.accountName : ''}` : 'Not connected' }}</p>
     <div class="mt-5 grid gap-4 sm:grid-cols-2"><label class="admin-label">App key<input v-model.trim="appKey" class="admin-input mt-2" autocomplete="off" /></label><label class="admin-label">App secret <span class="font-normal text-gray-400">(optional; leave blank to keep)</span><input v-model="secret" class="admin-input mt-2" type="password" autocomplete="new-password" /></label></div>
     <p v-if="error" role="alert" class="mt-3 text-sm text-red-600">{{ error }}</p><p v-if="notice" class="mt-3 text-sm text-emerald-600">{{ notice }}</p>

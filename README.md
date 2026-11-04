@@ -170,9 +170,9 @@ The **preloader, navbar and footer are applied automatically** via
 
 ## Dropbox media integration
 
-The admin media library supports JPEG, PNG, GIF and WebP images up to 4 MB,
+The admin media library supports JPEG, PNG, GIF and WebP images and MP4 and WebM videos up to 4 MB,
 subject to the deployment provider's request body limit. Existing direct URLs
-continue to work. Video uploads are not supported by this integration.
+continue to work. Previews of existing videos larger than 4 MB are unavailable, but those videos can still be selected. Dropbox may not provide thumbnails for every file.
 
 1. Create a Dropbox app, preferably with **App folder** access. Enable
    `files.metadata.read`, `files.content.read`, `files.content.write`,

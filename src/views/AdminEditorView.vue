@@ -569,6 +569,7 @@ watch(draft, persistLocalDraft, { deep: true })
                   placeholder="https://cdn.example.com/video.mp4"
                   :class="fieldClass(isWorks ? 'previewVideoUrl' : 'videoUrl')"
                 />
+                <DropboxPicker media-type="video" @select="mediaVideoUrl = $event" />
               </div>
               <div>
                 <label class="admin-label">Preview Image Fallback / Poster</label>
@@ -738,6 +739,7 @@ watch(draft, persistLocalDraft, { deep: true })
                   class="admin-input mt-1.5 text-xs font-mono"
                   placeholder="https://cdn..."
                 />
+                <DropboxPicker media-type="video" @select="draft.caseStudy.hero.videoUrl = $event" />
               </div>
 
               <div>
@@ -1010,6 +1012,7 @@ watch(draft, persistLocalDraft, { deep: true })
                 <div>
                   <label class="admin-label">Video URL</label>
                   <input v-model="slide.videoUrl" type="url" class="admin-input mt-1.5 text-xs font-mono" placeholder="https://cdn..." />
+                  <DropboxPicker media-type="video" @select="slide.videoUrl = $event" />
                 </div>
                 <div>
                   <label class="admin-label">Image Fallback</label>
@@ -1069,10 +1072,12 @@ watch(draft, persistLocalDraft, { deep: true })
               <div>
                 <label class="admin-label">Video URL</label>
                 <input v-model="mediaVideoUrl" type="url" class="admin-input mt-1.5 text-xs font-mono" placeholder="https://..." />
+                <DropboxPicker media-type="video" @select="mediaVideoUrl = $event" />
               </div>
               <div>
                 <label class="admin-label">Image Poster / Fallback</label>
                 <input v-model="mediaImageUrl" type="url" class="admin-input mt-1.5 text-xs font-mono" placeholder="https://..." />
+                <DropboxPicker @select="mediaImageUrl = $event" />
               </div>
             </div>
 

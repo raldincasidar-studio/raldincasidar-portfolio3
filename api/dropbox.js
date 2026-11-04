@@ -24,10 +24,18 @@ export function imageType(bytes) {
   if (bytes.length >= 12 && bytes.subarray(0, 4).toString() === 'RIFF' && bytes.subarray(8, 12).toString() === 'WEBP') return 'image/webp'
   return null
 }
+export function mediaType(bytes) {
+  const image = imageType(bytes)
+  if (image) return image
+  if (bytes.length >= 12 && bytes.subarray(4, 8).toString('ascii') === 'ftyp') return 'video/mp4'
+  if (bytes.length >= 4 && bytes.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))) return 'video/webm'
+  return null
+}
 export function directLink(url) {
   const result = new URL(url)
-  if (result.protocol !== 'https:' || !['www.dropbox.com', 'dropbox.com'].includes(result.hostname)) throw new Error('Unexpected Dropbox shared link')
-  result.searchParams.delete('dl'); result.searchParams.set('raw', '1')
+  if (result.protocol !== 'https:' || result.username || result.password || result.port || !['www.dropbox.com', 'dropbox.com'].includes(result.hostname)) throw new Error('Unexpected Dropbox shared link')
+  result.hostname = 'dl.dropboxusercontent.com'
+  result.searchParams.delete('dl'); result.searchParams.delete('raw')
   return result.toString()
 }
 export async function dropboxRequest(endpoint, token, body, { content = false, arg, fetcher = fetch, retry = false } = {}) {
