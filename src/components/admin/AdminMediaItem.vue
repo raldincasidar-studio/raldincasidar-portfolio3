@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { createMediaItem } from '@/utils/postBlocks.js'
+import DropboxPicker from './DropboxPicker.vue'
 
 /**
  * AdminMediaItem — one image or video inside post content.
@@ -88,6 +89,7 @@ function reset() {
             :aria-label="isVideo ? 'Video URL' : 'Image URL'"
             @keydown.enter.prevent
           />
+          <DropboxPicker v-if="!isVideo" @select="item.url = $event" />
           <p v-if="item.url" class="pm-error">That URL couldn’t be loaded — check the link.</p>
         </div>
 
@@ -128,6 +130,7 @@ function reset() {
         {{ isVideo ? 'Video URL' : 'Image URL' }}
         <input v-model="item.url" type="text" inputmode="url" class="pm-field" :placeholder="isVideo ? 'https://cdn.example.com/clip.mp4' : 'https://cdn.example.com/shot.jpg'" />
       </label>
+      <DropboxPicker v-if="!isVideo" @select="item.url = $event" />
       <div class="pm-grid">
         <label class="pm-label">
           Alt text <span class="pm-muted">(accessibility)</span>

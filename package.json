@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Raldin Casidar portfolio — Vue 3 + Vite + Tailwind CSS v4 + Vue Router",
+  "description": "Raldin Casidar portfolio \u2014 Vue 3 + Vite + Tailwind CSS v4 + Vue Router",
   "engines": {
     "node": ">=18.0.0"
   },
@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "api": "node api/server.js",
     "seed:admin": "node api/seed-admin.js",
-    "test:api": "node --test tests/api.test.js"
+    "test:api": "node --test tests/api.test.js",
+    "test:dropbox": "node --test tests/dropbox.test.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

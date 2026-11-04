@@ -17,6 +17,7 @@ const routes = [
     { path: 'labs', name: 'admin-labs', component: () => import('@/views/AdminCollectionView.vue'), props: { type: 'labs' }, meta: { title: 'Apps Lab' } },
     { path: 'labs/:id/edit', name: 'admin-lab-edit', component: () => import('@/views/AdminEditorView.vue'), props: { type: 'labs' }, meta: { title: 'Edit App Lab' } },
     { path: 'labs/new', name: 'admin-lab-new', component: () => import('@/views/AdminEditorView.vue'), props: { type: 'labs' }, meta: { title: 'New App Lab' } },
+    { path: 'media', name: 'admin-media', component: () => import('@/views/AdminMediaView.vue'), meta: { title: 'Media library' } },
     { path: 'settings', name: 'admin-settings', component: () => import('@/views/AdminSettingsView.vue'), meta: { title: 'Settings' } },
   ] },
   { path: '/', component: DefaultLayout, children: [
