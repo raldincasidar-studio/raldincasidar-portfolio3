@@ -1,9 +1,10 @@
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { dropboxApi } from '@/api/dropbox.js'
+import { adminApi } from '@/api/admin.js'
 const props = defineProps({ picker: Boolean, mediaType: { type: String, default: 'image' } })
 const emit = defineEmits(['select'])
-const path = ref(''), entries = ref([]), cursor = ref(null), loading = ref(false), error = ref(''), notice = ref(''), usage = ref(null), connected = ref(false), input = ref(null)
+const path = ref(''), entries = ref([]), cursor = ref(null), loading = ref(false), error = ref(''), notice = ref(''), usage = ref(null), connected = ref(false), input = ref(null), maxUploadSizeMB = ref(4)
 const imagePattern = /\.(jpe?g|png|gif|webp)$/i, videoPattern = /\.(mp4|webm)$/i
 const allowed = /\.(jpe?g|png|gif|webp|mp4|webm)$/i
 const previewDialog = ref(null), previewIndex = ref(0), previewTrigger = ref(null), failedThumbs = ref({}), failedFull = ref({})
@@ -23,7 +24,7 @@ async function refreshUsage() { try { usage.value = (await dropboxApi.usage()).d
 async function upload(event) {
   const file = event.target.files?.[0]; event.target.value = ''
   if (!file) return
-  if (file.size > 4 * 1024 * 1024 || !allowed.test(file.name)) { error.value = 'Choose a JPEG, PNG, GIF, WebP, MP4 or WebM file up to 4 MB.'; return }
+  if (file.size > maxUploadSizeMB.value * 1024 * 1024 || !allowed.test(file.name)) { error.value = `Choose a JPEG, PNG, GIF, WebP, MP4 or WebM file up to ${maxUploadSizeMB.value} MB.`; return }
   loading.value = true; error.value = ''; notice.value = ''
   try {
     const result = await dropboxApi.upload(path.value, file)
@@ -44,7 +45,7 @@ async function upload(event) {
 async function share(item) { if (!window.confirm(`Make or reuse a public link for ${item.path}? Anyone with the link can view this file, even if content is still a draft.`)) return; loading.value = true; error.value = ''; try { const r = await dropboxApi.link(item.id); if (props.picker) emit('select', r.data.url); else { try { await navigator.clipboard.writeText(r.data.url); notice.value = `Public link copied for ${item.path}.` } catch { notice.value = `Public link: ${r.data.url}` } } } catch(e) { error.value = e.message } finally { loading.value = false } }
 async function remove(item) { if (!window.confirm(`Delete ${item.path}? Published content using this file may break. Dropbox deletion is recoverable for a limited time depending on your account. Confirm deletion?`)) return; loading.value = true; error.value = ''; try { const r = await dropboxApi.remove(item); notice.value = `Deleted ${r.data.path}. Recovery may be available in Dropbox history.`; loading.value = false; await load(); await refreshUsage() } catch(e) { error.value = e.message } finally { loading.value = false } }
 function up() { load(path.value.slice(0, path.value.lastIndexOf('/'))) }
-onMounted(async () => { try { connected.value = (await dropboxApi.connection()).data.connected; if (connected.value) { await load(''); await refreshUsage() } } catch(e) { error.value = e.message } })
+onMounted(async () => { try { const settingsResult = await adminApi.settings(); maxUploadSizeMB.value = settingsResult.data?.maxUploadSizeMB ?? 4; connected.value = (await dropboxApi.connection()).data.connected; if (connected.value) { await load(''); await refreshUsage() } } catch(e) { error.value = e.message } })
 </script>
 <template>
   <div class="min-w-0">
@@ -53,7 +54,7 @@ onMounted(async () => { try { connected.value = (await dropboxApi.connection()).
     <template v-if="connected">
       <div v-if="usage" class="mb-5 rounded-2xl bg-gray-50 p-4 text-sm text-gray-500"><span class="font-semibold text-gray-900">Storage</span> · {{ bytes(usage.used) }} used <template v-if="usage.allocated != null && usage.remaining != null">of {{ bytes(usage.allocated) }} · {{ bytes(usage.remaining) }} remaining<span v-if="usage.allocationType === 'team'"> (team allocation)</span></template><template v-else> · allocation unavailable</template></div>
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div class="min-w-0 text-sm text-gray-500"><button v-if="path" type="button" class="mr-2 font-semibold text-[#17A6E3]" :disabled="loading" @click="up">← Back</button><span class="break-all">{{ path || 'Dropbox /' }}</span></div><div class="flex flex-wrap gap-2"><button type="button" class="admin-button-secondary" :disabled="loading" @click="load()">Refresh</button><button type="button" class="admin-button-primary" :disabled="loading" @click="input.click()">Upload media</button><input ref="input" class="hidden" type="file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm" @change="upload" /></div></div>
-      <p class="mb-3 text-xs text-gray-400">JPEG, PNG, GIF, WebP, MP4 or WebM · up to 4 MB. Uploading does not make a file public.</p>
+      <p class="mb-3 text-xs text-gray-400">JPEG, PNG, GIF, WebP, MP4 or WebM · up to {{ maxUploadSizeMB }} MB. Uploading does not make a file public.</p>
       <div v-if="loading && !entries.length" class="rounded-2xl bg-gray-50 p-5 text-sm text-gray-500">Loading…</div><div v-else-if="!entries.length" class="rounded-2xl bg-gray-50 p-5 text-sm text-gray-500">This folder is empty.</div>
       <ul v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <li v-for="item in entries" :key="item.id" class="min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -71,8 +72,8 @@ onMounted(async () => { try { connected.value = (await dropboxApi.connection()).
       <dialog ref="previewDialog" aria-labelledby="media-preview-title" class="m-auto max-h-[94vh] w-[min(96vw,1000px)] overflow-y-auto rounded-3xl bg-white p-4 shadow-2xl backdrop:bg-black/70 sm:p-6" @close="restoreFocus">
         <template v-if="previewItem"><div class="mb-4 flex items-center justify-between gap-3"><div class="min-w-0"><p class="admin-eyebrow">Media preview</p><h2 id="media-preview-title" class="truncate text-lg font-semibold text-gray-900">{{ previewItem.name }}</h2><p class="mt-1 text-xs text-gray-400">{{ bytes(previewItem.size) }} · {{ previewIndex + 1 }} / {{ previewItems.length }}</p></div><button type="button" class="admin-button-secondary" @click="closePreview">Close</button></div>
           <div class="flex min-h-[240px] items-center justify-center overflow-hidden rounded-2xl bg-gray-900 sm:min-h-[420px]">
-            <video v-if="videoPattern.test(previewItem.name) && previewItem.size <= 4 * 1024 * 1024" :key="previewItem.id" :src="previewUrl(previewItem, true)" controls playsinline class="max-h-[60vh] max-w-full" />
-            <p v-else-if="videoPattern.test(previewItem.name)" class="p-6 text-center text-sm text-white/70">Video preview is limited to 4 MB. You can still select this file.</p>
+            <video v-if="videoPattern.test(previewItem.name) && previewItem.size <= maxUploadSizeMB * 1024 * 1024" :key="previewItem.id" :src="previewUrl(previewItem, true)" controls playsinline class="max-h-[60vh] max-w-full" />
+            <p v-else-if="videoPattern.test(previewItem.name)" class="p-6 text-center text-sm text-white/70">Video preview is limited to {{ maxUploadSizeMB }} MB. You can still select this file.</p>
             <p v-else-if="failedFull[previewItem.id]" class="p-6 text-center text-sm text-white/70">Dropbox could not generate a preview for this file.</p>
             <img v-else :key="previewItem.id" :src="previewUrl(previewItem, true)" :alt="previewItem.name" class="max-h-[60vh] max-w-full object-contain" @error="failedFull[previewItem.id] = true" />
           </div>

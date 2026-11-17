@@ -1,6 +1,6 @@
 import express from 'express'
 import crypto from 'node:crypto'
-import { DropboxIntegration, DropboxOAuthState } from './models.js'
+import { DropboxIntegration, DropboxOAuthState, SiteSettings } from './models.js'
 import { requireAuth, loadAdmin, cookieName } from './auth.js'
 import { recordAudit } from './audit.js'
 import { seal, unseal, encryptionKey, mediaType, directLink, dropboxRequest } from './dropbox.js'
@@ -59,7 +59,9 @@ router.get('/preview', wrap(async (req, res) => {
   const isVideo = /\.(mp4|webm)$/i.test(name)
   if (!isImage && !isVideo) fail('Preview is unavailable for this file type.', 415)
   const videoDownload = isVideo && req.query.full === '1'
-  if (videoDownload && (!Number.isFinite(meta.size) || meta.size > 4 * 1024 * 1024)) fail('Video preview is available for files up to 4 MB.', 413)
+  const settings = await SiteSettings.findOne({ key: 'global' }).lean()
+  const maxBytes = (settings?.maxUploadSizeMB ?? 4) * 1024 * 1024
+  if (videoDownload && (!Number.isFinite(meta.size) || meta.size > maxBytes)) fail(`Video preview is available for files up to ${settings?.maxUploadSizeMB ?? 4} MB.`, 413)
   const arg = videoDownload ? { path: id } : { resource: { '.tag': 'path', path: id }, format: 'jpeg', size: req.query.full === '1' ? 'w1024h768' : 'w256h256', mode: 'bestfit' }
   const requestPreview = async (accessToken) => fetch(`https://content.dropboxapi.com/2/files/${videoDownload ? 'download' : 'get_thumbnail_v2'}`, {
     method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Dropbox-API-Arg': JSON.stringify(arg), ...(videoDownload && /^bytes=\d+-\d*$/.test(req.get('range') || '') ? { Range: req.get('range') } : {}) }, signal: AbortSignal.timeout(25000)
@@ -67,9 +69,9 @@ router.get('/preview', wrap(async (req, res) => {
   let response = await requestPreview(await token())
   if (response.status === 401) { cachedToken = null; response = await requestPreview(await token()) }
   if (!response.ok) fail('Preview unavailable for this file.', 502)
-  if (Number(response.headers.get('content-length')) > 4 * 1024 * 1024) fail('Preview is too large.', 413)
+  if (Number(response.headers.get('content-length')) > maxBytes) fail('Preview is too large.', 413)
   const bytes = Buffer.from(await response.arrayBuffer())
-  if (bytes.length > 4 * 1024 * 1024) fail('Preview is too large.', 413)
+  if (bytes.length > maxBytes) fail('Preview is too large.', 413)
   res.set('Content-Type', videoDownload ? (/\.webm$/i.test(name) ? 'video/webm' : 'video/mp4') : 'image/jpeg')
   res.set('X-Content-Type-Options', 'nosniff')
   if (videoDownload && response.status === 206 && response.headers.get('content-range')) {
@@ -77,7 +79,7 @@ router.get('/preview', wrap(async (req, res) => {
   }
   res.send(bytes)
 }))
-router.post('/files', express.raw({ type: 'application/octet-stream', limit: '4mb' }), wrap(async (req,res) => { const folder = pathValue(req.query.path || ''), name = req.query.name; if (typeof name !== 'string' || name.length > 200 || !name || /[/\\\x00-\x1f]/.test(name) || name === '.' || name === '..' || /[.\s]$/.test(name)) fail('Invalid filename.'); if (!Buffer.isBuffer(req.body) || !req.body.length || !mediaType(req.body)) fail('Upload a valid JPEG, PNG, GIF, WebP, MP4 or WebM file.'); const ext = name.split('.').pop().toLowerCase(); if (!({ 'image/jpeg': ['jpg','jpeg'], 'image/png': ['png'], 'image/gif': ['gif'], 'image/webp': ['webp'], 'video/mp4': ['mp4'], 'video/webm': ['webm'] }[mediaType(req.body)] || []).includes(ext)) fail('File extension does not match media contents.'); const r = await call('files/upload', req.body, { content: true, arg: { path: `${folder}/${name}`, mode: 'add', autorename: true, mute: false } }); await recordAudit(req, { action: 'dropbox_upload', resourceType: 'media', resourceTitle: r.path_display, summary: 'Uploaded Dropbox media' }); res.json({ data: cleanEntries([{ ...r, '.tag': 'file' }])[0] }) }))
+router.post('/files', express.raw({ type: 'application/octet-stream', limit: '100mb' }), wrap(async (req,res) => { const settings = await SiteSettings.findOne({ key: 'global' }).lean(); const maxBytes = (settings?.maxUploadSizeMB ?? 4) * 1024 * 1024; if (Buffer.isBuffer(req.body) && req.body.length > maxBytes) fail(`File exceeds the ${settings?.maxUploadSizeMB ?? 4} MB upload limit.`, 413); const folder = pathValue(req.query.path || ''), name = req.query.name; if (typeof name !== 'string' || name.length > 200 || !name || /[/\\\x00-\x1f]/.test(name) || name === '.' || name === '..' || /[.\s]$/.test(name)) fail('Invalid filename.'); if (!Buffer.isBuffer(req.body) || !req.body.length || !mediaType(req.body)) fail('Upload a valid JPEG, PNG, GIF, WebP, MP4 or WebM file.'); const ext = name.split('.').pop().toLowerCase(); if (!({ 'image/jpeg': ['jpg','jpeg'], 'image/png': ['png'], 'image/gif': ['gif'], 'image/webp': ['webp'], 'video/mp4': ['mp4'], 'video/webm': ['webm'] }[mediaType(req.body)] || []).includes(ext)) fail('File extension does not match media contents.'); const r = await call('files/upload', req.body, { content: true, arg: { path: `${folder}/${name}`, mode: 'add', autorename: true, mute: false } }); await recordAudit(req, { action: 'dropbox_upload', resourceType: 'media', resourceTitle: r.path_display, summary: 'Uploaded Dropbox media' }); res.json({ data: cleanEntries([{ ...r, '.tag': 'file' }])[0] }) }))
 router.post('/files/link', wrap(async (req,res) => { if (req.body?.confirmPublic !== true) fail('Confirm public access before creating a link.'); const id = fileId(req.body?.id); const meta = await call('files/get_metadata', { path: id }, { retry: true }); if (meta['.tag'] !== 'file' || !/\.(jpe?g|png|gif|webp|mp4|webm)$/i.test(meta.name || '')) fail('Select a supported image or video file.'); let links = await call('sharing/list_shared_links', { path: id, direct_only: true }, { retry: true }); let link = links.links?.find(x => x.link_permissions?.resolved_visibility?.['.tag'] === 'public'); if (!link) { try { link = await call('sharing/create_shared_link_with_settings', { path: id, settings: { requested_visibility: 'public' } }) } catch (err) { /* A prior or concurrent create may have succeeded. */ links = await call('sharing/list_shared_links', { path: id, direct_only: true }, { retry: true }); link = links.links?.find(x => x.link_permissions?.resolved_visibility?.['.tag'] === 'public'); if (!link) throw err } } if (link.link_permissions?.resolved_visibility?.['.tag'] !== 'public') fail('Dropbox did not grant public access. Check your sharing policy.', 409); const url = directLink(link.url); await recordAudit(req, { action: 'dropbox_share', resourceType: 'media', resourceTitle: meta.path_display, summary: 'Selected publicly shared Dropbox media' }); res.json({ data: { url, id: meta.id, path: meta.path_display } }) }))
 router.delete('/files', wrap(async (req,res) => { if (req.body?.confirm !== true) fail('Confirm the exact file before deleting.'); const id = fileId(req.body?.id); const meta = await call('files/get_metadata', { path: id }, { retry: true }); if (meta['.tag'] !== 'file' || meta.path_display !== req.body.path || meta.rev !== req.body.rev) fail('The file changed. Refresh the library and confirm again.', 409); const result = await call('files/delete_v2', { path: id }); await recordAudit(req, { action: 'dropbox_delete', resourceType: 'media', resourceTitle: meta.path_display, summary: 'Deleted Dropbox image' }); res.json({ data: { path: result.metadata.path_display } }) }))
 export default router
